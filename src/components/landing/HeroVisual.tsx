@@ -24,23 +24,7 @@ export default function HeroVisual() {
         animate="visible"
         variants={{}}
       >
-        {/* Preference cards */}
-        {[
-          { title: "AI", pct: 35 },
-          { title: "Programming", pct: 30 },
-          { title: "Cybersecurity", pct: 20 },
-          { title: "Cats", pct: 15 },
-        ].map((item, idx) => (
-          <motion.div
-            key={item.title}
-            custom={idx}
-            variants={cardVariants}
-            className="relative rounded-xl bg-black/40 p-4 text-sm backdrop-blur-sm"
-          >
-            <div className="text-indigo-300">{item.title}</div>
-            <div className="mt-1 text-white/80">{item.pct}%</div>
-          </motion.div>
-        ))}
+        
       </motion.div>
     </div>
   );

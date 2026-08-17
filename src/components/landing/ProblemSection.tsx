@@ -29,17 +29,17 @@ export default function ProblemSection() {
             viewport={{ once: true, amount: 0.2 }}
             className="rounded-xl bg-black/40 p-6 backdrop-blur"
           >
-            <h3 className="mb-4 text-xl font-semibold text-indigo-300">Traditional</h3>
-            <pre className="whitespace-pre-wrap text-sm text-gray-300">Create account
-   ↓
-Random content
-   ↓
-Like / Skip
-   ↓
-Follow random creators
-   ↓
-Wait…
-   ↓
+            <h3 className="text-center mb-4 text-xl font-semibold text-indigo-300">Traditional</h3>
+            <pre className="text-center whitespace-pre-wrap text-sm text-gray-300">Create account<br/>
+   ↓<br/>
+Random content<br/>
+   ↓<br/>
+Like / Skip<br/>
+   ↓<br/>
+Follow random creators<br/>
+   ↓<br/>
+Wait…<br/>
+   ↓<br/>
 Still irrelevant content</pre>
           </motion.div>
 
@@ -51,15 +51,15 @@ Still irrelevant content</pre>
             viewport={{ once: true, amount: 0.2 }}
             className="rounded-xl bg-black/40 p-6 backdrop-blur"
           >
-            <h3 className="mb-4 text-xl font-semibold text-indigo-300">FeedSmith</h3>
-            <pre className="whitespace-pre-wrap text-sm text-gray-300">Tell us what you want
-   ↓
-Build your profile
-   ↓
-Get your strategy
-   ↓
-Train intentionally
-   ↓
+            <h3 className="text-center mb-4 text-xl font-semibold text-indigo-300">FeedSmith</h3>
+            <pre className="text-center whitespace-pre-wrap text-sm text-gray-300">Tell us what you want<br/>
+   ↓<br/>
+Build your profile<br/>
+   ↓<br/>
+Get your strategy<br/>
+   ↓<br/>
+Train intentionally<br/>
+   ↓<br/>
 Track progress</pre>
           </motion.div>
         </div>
