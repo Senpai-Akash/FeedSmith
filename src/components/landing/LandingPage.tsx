@@ -3,11 +3,11 @@
 import Navbar from "./Navbar";
 import Hero from "./Hero";
 import ProblemSection from "./ProblemSection";
-import HowItWorks from "./HowItWorks";
-import FeedProfilePreview from "./FeedProfilePreview";
-import FeedAnalyzerPreview from "./FeedAnalyzerPreview";
-import PhilosophySection from "./PhilosophySection";
-import PlatformsSection from "./PlatformsSection";
+import FeedBuilderPreview from "./FeedBuilderPreview";
+import FeedProfile from "./FeedProfile";
+import FeedComparison from "./FeedComparison";
+import TransformationSection from "./TransformationSection";
+import FeatureSection from "./FeatureSection";
 import FinalCTA from "./FinalCTA";
 import Footer from "./Footer";
 
@@ -18,11 +18,11 @@ export default function LandingPage() {
       <main className="flex-1">
         <Hero />
         <ProblemSection />
-        <HowItWorks />
-        <FeedProfilePreview />
-        <FeedAnalyzerPreview />
-        <PhilosophySection />
-        <PlatformsSection />
+        <FeedBuilderPreview />
+        <FeedProfile />
+        <FeedComparison />
+        <TransformationSection />
+        <FeatureSection />
         <FinalCTA />
       </main>
       <Footer />

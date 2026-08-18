@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import HeroVisual from "./HeroVisual";
+import SignalVisualization from "./SignalVisualization";
 import { fadeUp, fadeIn } from "@/lib/animations";
 
 /**
@@ -68,7 +68,7 @@ export default function Hero() {
 
       {/* Algorithm visual – occupies the full height behind the text */}
       <div className="absolute inset-0 pointer-events-none">
-        <HeroVisual />
+        <SignalVisualization />
       </div>
     </section>
   );
