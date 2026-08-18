@@ -46,7 +46,7 @@ export default function HowItWorks() {
               variants={stepVariants}
               className="rounded-xl bg-black/30 p-6 backdrop-blur"
             >
-              <h3 className="mb-2 text-xl font-semibold text-indigo-300">{step.title}</h3>
+               <h3 className="mb-2 text-xl font-semibold text-accent">{step.title}</h3>
               <p className="text-gray-300">{step.desc}</p>
             </motion.div>
           ))}

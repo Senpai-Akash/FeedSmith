@@ -3,23 +3,25 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import HeroVisual from "./HeroVisual";
+import { fadeUp, fadeIn } from "@/lib/animations";
 
-const fadeUp = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.6 } },
-};
-
+/**
+ * Redesigned Hero that emphasizes typography and the algorithm‑shaping visual.
+ * The badge (eyebrow) uses the accent colour. The headline is split for
+ * intentional asymmetry and larger line‑height. The CTA buttons are minimal –
+ * primary uses the accent background, secondary is a simple underline link.
+ */
 export default function Hero() {
   return (
-    <section className="relative min-h-screen pt-24 pb-32 flex flex-col items-center justify-center overflow-hidden bg-black text-white">
-      {/* Badge */}
+    <section className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-white dark:bg-black text-gray-900 dark:text-gray-100 py-24 md:py-32">
+      {/* Eyebrow */}
       <motion.div
         variants={fadeUp}
         initial="hidden"
         animate="visible"
-        className="mb-4 rounded-full bg-indigo-600/20 px-3 py-1 text-xs font-medium text-indigo-300"
+        className="mb-3 text-sm font-medium uppercase tracking-wider text-accent"
       >
-        ✦ Personalize your algorithm
+        FeedSmith • Personal Algorithm
       </motion.div>
 
       {/* Headline */}
@@ -27,19 +29,20 @@ export default function Hero() {
         variants={fadeUp}
         initial="hidden"
         animate="visible"
-        className="max-w-2xl text-center text-5xl font-extrabold tracking-tight md:text-6xl lg:text-7xl"
+        className="max-w-4xl text-center text-5xl font-extrabold leading-tight md:text-6xl lg:text-7xl"
       >
-        Craft the <span className="text-indigo-400">feed</span> you actually want.
+        <span className="block">Your feed should</span>
+        <span className="block text-accent">know what you want.</span>
       </motion.h1>
 
       {/* Sub‑text */}
       <motion.p
-        variants={fadeUp}
+        variants={fadeIn}
         initial="hidden"
         animate="visible"
-        className="mt-6 max-w-xl text-center text-lg text-gray-300 md:mt-8"
+        className="mt-6 max-w-2xl text-center text-lg text-gray-600 dark:text-gray-400"
       >
-        Stop spending days training your social‑media recommendations. Tell FeedSmith what you want to see, and we’ll create a personalized strategy to help shape your feed.
+        Shape the content that appears for you. Tell FeedSmith your interests, and we’ll craft the feed you actually want.
       </motion.p>
 
       {/* CTAs */}
@@ -47,23 +50,23 @@ export default function Hero() {
         variants={fadeUp}
         initial="hidden"
         animate="visible"
-        className="mt-8 flex flex-col gap-4 sm:flex-row"
+        className="mt-10 flex flex-col items-center gap-4 sm:flex-row"
       >
         <Link
           href="#"
-          className="rounded-full bg-indigo-600 px-6 py-3 text-sm font-medium text-white hover:bg-indigo-500 transition"
+          className="rounded-full bg-accent px-8 py-3 text-sm font-medium text-white hover:bg-accent/90 transition"
         >
           Build My Feed →
         </Link>
         <Link
           href="#how-it-works"
-          className="rounded-full border border-indigo-400 px-6 py-3 text-sm font-medium text-indigo-300 hover:border-indigo-300 hover:text-white transition"
+          className="text-sm font-medium text-accent underline underline-offset-4 hover:text-accent/80 transition"
         >
           See how it works
         </Link>
       </motion.div>
 
-      {/* Visual mockup */}
+      {/* Algorithm visual – occupies the full height behind the text */}
       <div className="absolute inset-0 pointer-events-none">
         <HeroVisual />
       </div>

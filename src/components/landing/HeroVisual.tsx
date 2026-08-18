@@ -16,7 +16,7 @@ export default function HeroVisual() {
   return (
     <div className="relative inset-0 flex items-center justify-center">
       {/* Background glow */}
-      <div className="absolute inset-0 bg-gradient-radial from-indigo-600/10 via-transparent to-transparent" />
+       <div className="absolute inset-0 bg-gradient-radial from-accent/10 via-transparent to-transparent" />
 
       <motion.div
         className="grid grid-cols-2 gap-4 p-8"

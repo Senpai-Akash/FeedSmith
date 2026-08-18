@@ -29,7 +29,7 @@ export default function ProblemSection() {
             viewport={{ once: true, amount: 0.2 }}
             className="rounded-xl bg-black/40 p-6 backdrop-blur"
           >
-            <h3 className="text-center mb-4 text-xl font-semibold text-indigo-300">Traditional</h3>
+             <h3 className="text-center mb-4 text-xl font-semibold text-accent">Traditional</h3>
             <pre className="text-center whitespace-pre-wrap text-sm text-gray-300">Create account<br/>
    ↓<br/>
 Random content<br/>
@@ -51,7 +51,7 @@ Still irrelevant content</pre>
             viewport={{ once: true, amount: 0.2 }}
             className="rounded-xl bg-black/40 p-6 backdrop-blur"
           >
-            <h3 className="text-center mb-4 text-xl font-semibold text-indigo-300">FeedSmith</h3>
+             <h3 className="text-center mb-4 text-xl font-semibold text-accent">FeedSmith</h3>
             <pre className="text-center whitespace-pre-wrap text-sm text-gray-300">Tell us what you want<br/>
    ↓<br/>
 Build your profile<br/>

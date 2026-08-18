@@ -2,67 +2,70 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
+// No longer needed; using simple motion variants directly
 
 /**
- * Minimal sticky navigation bar with scroll‑aware background.
- * Uses a transparent background initially and a blurred translucent one after scrolling.
+ * Refined sticky navbar. It starts transparent and gains a subtle dark overlay
+ * once the page is scrolled. The design is deliberately minimal – the brand
+ * mark is a tiny accent‑coloured dot, and navigation links are plain text that
+ * become highlighted on hover.
  */
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
-    const handler = () => setScrolled(window.scrollY > 50);
+    const handler = () => setScrolled(window.scrollY > 60);
     window.addEventListener("scroll", handler);
     return () => window.removeEventListener("scroll", handler);
   }, []);
 
   return (
     <header className="fixed inset-x-0 top-0 z-50">
-      <AnimatePresence>
-        <motion.nav
-          initial={false}
-          animate={scrolled ? "scrolled" : "top"}
-          variants={{
-            top: {
-              backgroundColor: "rgba(0,0,0,0)",
-              backdropFilter: "blur(0px)",
-              borderBottom: "none",
-            },
-            scrolled: {
-              backgroundColor: "rgba(255,255,255,0.08)",
-              backdropFilter: "blur(12px)",
-              borderBottom: "1px solid rgba(255,255,255,0.1)",
-            },
-          }}
-          className="flex items-center justify-between px-6 py-4 transition-colors"
-        >
-          <Link href="#" className="flex items-center gap-2 text-xl font-semibold text-white">
-            {/* Simple custom mark */}
-            <span className="relative inline-block h-2 w-2 rounded-full bg-indigo-500 after:absolute after:-inset-1 after:rounded-full after:border-2 after:border-indigo-500/30" />
-            FeedSmith
+      <motion.nav
+        initial="top"
+        animate={scrolled ? "scrolled" : "top"}
+        variants={{
+          top: { backgroundColor: "transparent" },
+          scrolled: {
+            backgroundColor: "rgba(0,0,0,0.6)",
+            transition: { duration: 0.3 },
+          },
+        }}
+        className="flex items-center justify-between px-8 py-4"
+      >
+        {/* Brand */}
+        <Link href="#" className="flex items-center gap-2 text-lg font-medium text-gray-200">
+          <span className="h-2 w-2 rounded-full bg-accent" />
+          FeedSmith
+        </Link>
+
+        {/* Navigation */}
+        <nav className="flex items-center gap-8 text-sm text-gray-300">
+          <Link href="#how-it-works" className="hover:text-white transition-colors">
+            How it works
           </Link>
-          <nav className="flex items-center gap-6 text-sm text-white/80">
-            <Link href="#how-it-works">How it works</Link>
-            <Link href="#features">Features</Link>
-            <Link href="#faq">FAQ</Link>
-          </nav>
-          <div className="flex items-center gap-3">
-            <Link
-              href="#"
-              className="text-sm text-white/70 hover:text-white"
-            >
-              Sign in
-            </Link>
-            <Link
-              href="#"
-              className="rounded-full bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500"
-            >
-              Build My Feed
-            </Link>
-          </div>
-        </motion.nav>
-      </AnimatePresence>
+          <Link href="#features" className="hover:text-white transition-colors">
+            Features
+          </Link>
+          <Link href="#faq" className="hover:text-white transition-colors">
+            FAQ
+          </Link>
+        </nav>
+
+        {/* Actions */}
+        <div className="flex items-center gap-4">
+          <Link href="#" className="text-sm text-gray-400 hover:text-white transition-colors">
+            Sign in
+          </Link>
+          <Link
+            href="#"
+            className="rounded-full bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent/90 transition"
+          >
+            Build My Feed
+          </Link>
+        </div>
+      </motion.nav>
     </header>
   );
 }

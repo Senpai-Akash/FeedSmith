@@ -30,7 +30,7 @@ export default function FeedProfilePreview() {
         <h2 className="mb-12 text-4xl font-bold text-center">Your Feed Profile</h2>
         {/* Interests */}
         <div className="space-y-4">
-          <h3 className="text-xl font-semibold text-indigo-300">INTERESTS</h3>
+          <h3 className="text-xl font-semibold text-accent">INTERESTS</h3>
           {interests.map((item, i) => (
             <motion.div
               key={i}
@@ -39,7 +39,7 @@ export default function FeedProfilePreview() {
               <span className="w-32 text-sm text-gray-400">{item.name}</span>
               <div className="flex-1 bg-gray-800 rounded h-3 overflow-hidden">
                 <motion.div
-                  className="h-full bg-indigo-500"
+                   className="h-full bg-accent"
                   custom={item.pct}
                   initial="hidden"
                   whileInView="visible"
@@ -54,7 +54,7 @@ export default function FeedProfilePreview() {
 
         {/* Content style */}
         <div className="mt-8 space-y-4">
-          <h3 className="text-xl font-semibold text-indigo-300">CONTENT STYLE</h3>
+           <h3 className="text-xl font-semibold text-accent">CONTENT STYLE</h3>
           {styles.map((item, i) => (
             <motion.div
               key={i}
@@ -63,7 +63,7 @@ export default function FeedProfilePreview() {
               <span className="w-32 text-sm text-gray-400">{item.name}</span>
               <div className="flex-1 bg-gray-800 rounded h-3 overflow-hidden">
                 <motion.div
-                  className="h-full bg-indigo-400"
+                   className="h-full bg-accent"
                   custom={item.pct}
                   initial="hidden"
                   whileInView="visible"
@@ -78,7 +78,7 @@ export default function FeedProfilePreview() {
 
         {/* Avoid */}
         <div className="mt-8">
-          <h3 className="text-xl font-semibold text-indigo-300">AVOID</h3>
+           <h3 className="text-xl font-semibold text-accent">AVOID</h3>
           <ul className="list-disc list-inside text-gray-300">
             {avoid.map((v, i) => (
               <li key={i}>{v}</li>

@@ -12,7 +12,7 @@ export default function FinalCTA() {
   return (
     <section id="final-cta" className="relative py-32 bg-gray-900 text-white overflow-hidden">
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute inset-0 bg-gradient-radial from-indigo-600/10 via-transparent to-transparent" />
+       <div className="absolute inset-0 bg-gradient-radial from-accent/10 via-transparent to-transparent" />
       </div>
       <div className="relative max-w-3xl mx-auto text-center px-6">
         <motion.h2
@@ -41,7 +41,7 @@ export default function FinalCTA() {
         >
           <Link
             href="#"
-            className="inline-block rounded-full bg-indigo-600 px-8 py-3 text-sm font-medium text-white hover:bg-indigo-500"
+             className="inline-block rounded-full bg-accent px-8 py-3 text-sm font-medium text-white hover:bg-accent/90"
           >
             Build My Feed →
           </Link>

@@ -8,7 +8,7 @@ export default function Footer() {
       <div className="max-w-5xl mx-auto px-6 flex flex-col items-center">
         <div className="flex items-center gap-2 mb-4">
           {/* Simple logo placeholder */}
-          <span className="h-2 w-2 rounded-full bg-indigo-500" />
+           <span className="h-2 w-2 rounded-full bg-accent" />
           FeedSmith
         </div>
         <nav className="flex flex-wrap justify-center gap-4 text-sm">
