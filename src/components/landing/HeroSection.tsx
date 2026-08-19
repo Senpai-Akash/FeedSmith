@@ -1,14 +1,33 @@
 "use client";
 
 import { motion } from "framer-motion";
-import AlgorithmWaveBackground from "./AlgorithmWaveBackground";
+import MoltenMetal from "../moltenmetal/MoltenMetal";
 
 export default function HeroSection() {
   return (
     <section className="relative flex-1 flex items-center justify-center overflow-hidden bg-gray-50">
-      {/* Background animation */}
+      {/* Molten metal background */}
       <div className="absolute inset-0 pointer-events-none">
-        <AlgorithmWaveBackground />
+        <MoltenMetal
+          color1="#5227FF"
+          color2="#FF9FFC"
+          color3="#FFFFFF"
+          speed={0.35}
+          scale={4}
+          detail={3}
+          glow={1.6}
+          coreSize={0.1}
+          swirl={1}
+          fold={-0.2}
+          blackPoint={0.05}
+          brightness={1.3}
+          colorMode="molten"
+          grain={true}
+          grainIntensity={0.05}
+          mouseInteraction={true}
+          mouseStrength={0.3}
+          opacity={1.0}
+        />
       </div>
       {/* Content overlay */}
       <div className="relative max-w-2xl text-center px-4 py-24 md:py-32 lg:py-40">
