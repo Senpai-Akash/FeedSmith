@@ -5,7 +5,7 @@ import MoltenMetal from "../moltenmetal/MoltenMetal";
 
 export default function HeroSection() {
   return (
-    <section className="relative flex-1 flex items-center justify-center overflow-hidden bg-gray-50">
+    <section className="relative flex-1 flex items-center justify-center overflow-hidden bg-transparent">
       {/* Molten metal background */}
       <div className="absolute inset-0 pointer-events-none">
         <MoltenMetal
