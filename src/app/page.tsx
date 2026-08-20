@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import NavBar from "@/components/landing/NavBar";
 import { motion } from "framer-motion";
 
 const MoltenMetal = dynamic(
@@ -39,46 +40,8 @@ export default function Home() {
       {/* Content layer */}
       <div className="relative z-10">
 
-        {/* Navbar */}
-        <header className="sticky top-0 z-50 border-b border-white/10 bg-black/10 backdrop-blur-md">
-          <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
-
-            <div className="text-xl font-semibold tracking-tight">
-              FeedSmith
-            </div>
-
-            <div className="hidden items-center gap-8 text-sm text-white/70 md:flex">
-              <a
-                href="#how-it-works"
-                className="transition hover:text-white"
-              >
-                How it works
-              </a>
-
-              <a
-                href="#product"
-                className="transition hover:text-white"
-              >
-                Product
-              </a>
-
-              <a
-                href="#philosophy"
-                className="transition hover:text-white"
-              >
-                Philosophy
-              </a>
-            </div>
-
-            <a
-              href="#start"
-              className="rounded-full border border-white/20 bg-white/10 px-5 py-2.5 text-sm font-medium backdrop-blur-sm transition hover:bg-white/20"
-            >
-              Build your feed →
-            </a>
-
-          </nav>
-        </header>
+       {/* Navbar */}
+       <NavBar />
 
         {/* Hero */}
         <section className="flex min-h-[calc(100vh-80px)] items-center px-6 bg-transparent ">
