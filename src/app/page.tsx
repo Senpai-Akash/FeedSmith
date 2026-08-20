@@ -19,18 +19,18 @@ export default function Home() {
         color1="#16002F"
         color2="#5A189A"
         color3="#E8D7FF"
-        speed={0.18}
-        scale={4.5}
+        speed={0.35}
+        scale={4}
         detail={3}
-        glow={1.5}
-        coreSize={0.09}
+        glow={1.6}
+        coreSize={0.1}
         swirl={1}
         fold={-0.18}
         blackPoint={0.08}
         brightness={1.25}
         colorMode="molten"
         grain={true}
-        grainIntensity={0.025}
+        grainIntensity={0.05}
         mouseInteraction={true}
         mouseStrength={0.18}
         opacity={0.75}
@@ -81,7 +81,7 @@ export default function Home() {
         </header>
 
         {/* Hero */}
-        <section className="flex min-h-[calc(100vh-80px)] items-center px-6">
+        <section className="flex min-h-[calc(100vh-80px)] items-center px-6 bg-transparent ">
 
           <div className="mx-auto grid w-full max-w-7xl items-center gap-16 py-24 lg:grid-cols-[1.05fr_0.95fr]">
 

@@ -9,25 +9,25 @@ export default function HeroSection() {
       {/* Molten metal background */}
       <div className="absolute inset-0 pointer-events-none">
         <MoltenMetal
-          color1="#5227FF"
-          color2="#FF9FFC"
-          color3="#FFFFFF"
-          speed={0.35}
-          scale={4}
-          detail={3}
-          glow={1.6}
-          coreSize={0.1}
-          swirl={1}
-          fold={-0.2}
-          blackPoint={0.05}
-          brightness={1.3}
-          colorMode="molten"
-          grain={true}
-          grainIntensity={0.05}
-          mouseInteraction={true}
-          mouseStrength={0.3}
-          opacity={1.0}
-        />
+  className="fixed inset-0 -z-10 pointer-events-none"
+   color1="#5227ff"
+  color2="#ff9ffc"
+  color3="#ffffff"
+  speed={0.35}
+  scale={4.0}
+  detail={3}
+  glow={1.6}
+  coreSize={0.1}
+  swirl={1}
+  fold={-0.2}
+  blackPoint={0.05}
+  brightness={1.3}
+  grain={true}
+  grainIntensity={0.05}
+  mouseInteraction={true}
+  mouseStrength={0.3}
+  opacity={1}
+/>
       </div>
       {/* Content overlay */}
       <div className="relative max-w-2xl text-center px-4 py-24 md:py-32 lg:py-40">
