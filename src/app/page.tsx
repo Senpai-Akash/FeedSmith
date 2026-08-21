@@ -14,26 +14,66 @@ const MoltenMetal = dynamic(
 
 /**
  * Orbital interest label visualization.
- * Uses pure CSS animations – no React state updates each frame.
- * The container applies a subtle mouse‑parallax tilt.
+ * Positions each label using JavaScript‑driven trigonometry so the text never rotates.
+ * The parent container (orbit-system) may have a subtle mouse‑parallax tilt applied.
  */
 function OrbitVisualization() {
+  // Define each interest with its orbit radius (px) and orbit period (seconds).
   const interests = [
-    { label: "AI", radius: 80, duration: 45 },
-    { label: "Programming", radius: 120, duration: 40 },
-    { label: "Cybersecurity", radius: 100, duration: 42 },
-    { label: "Cats", radius: 140, duration: 38 },
+    // Outer orbit
+    { label: "Programming", radius: 120, period: 36, ring: "outer", initialAngle: 0 },
+    // Middle orbit
+    { label: "AI", radius: 95, period: 38, ring: "middle", initialAngle: Math.PI / 2 },
+    { label: "Cats", radius: 95, period: 34, ring: "middle", initialAngle: (3 * Math.PI) / 2 },
+    // Inner orbit
+    { label: "Cybersecurity", radius: 70, period: 42, ring: "inner", initialAngle: Math.PI },
   ];
+
+  // Create a ref for each label element to update its transform directly.
+  const labelRefs = useRef<Array<HTMLDivElement | null>>([]);
+
+  useEffect(() => {
+    let animationFrame: number;
+    const start = performance.now();
+
+    const animate = (now: number) => {
+      const elapsed = (now - start) / 1000; // seconds
+      interests.forEach((it, i) => {
+        const angularSpeed = (2 * Math.PI) / it.period; // rad/s
+        const angle = it.initialAngle + angularSpeed * elapsed;
+        const x = Math.cos(angle) * it.radius;
+        const y = Math.sin(angle) * it.radius;
+        const el = labelRefs.current[i];
+        if (el) {
+          // Position relative to the centre (left:50%, top:50%).
+          el.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px)`;
+        }
+      });
+      animationFrame = requestAnimationFrame(animate);
+    };
+    animationFrame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animationFrame);
+  }, []);
 
   return (
     <>
       {interests.map((it, idx) => (
         <div
           key={idx}
-          className="orbit"
-          style={{ "--duration": `${it.duration}s`, "--radius": `${it.radius}px` } as any}
+          className="orbit-label"
+          ref={el => { labelRefs.current[idx] = el; }}
+          style={{
+            position: "absolute",
+            left: "50%",
+            top: "50%",
+            color: "rgba(205, 195, 230, 0.72)",
+            textShadow: "0 0 10px rgba(150, 100, 255, 0.22)",
+            opacity: 0.75,
+            fontSize: "0.875rem",
+            pointerEvents: "none",
+          } as React.CSSProperties}
         >
-          <span className="orbit-item">{it.label}</span>
+          {it.label}
         </div>
       ))}
     </>
@@ -237,57 +277,28 @@ export default function Home() {
         </section>
 
        </div>
-       {/* Global styles for orbital visualization */}
-       <style jsx global>{`
-         .orbit-system {
-           position: absolute;
-           inset: 0;
-           perspective: 800px;
-           transform-style: preserve-3d;
-           transition: transform 0.2s ease-out;
-         }
-         .orbit {
-           position: absolute;
-           inset: 0;
-           transform-origin: center;
-           animation: spin var(--duration) linear infinite;
-         }
-         .orbit-item {
-           position: absolute;
-           top: 50%;
-           left: 50%;
-           /* Move outwards by radius */
-           transform: translate(-50%, calc(-1 * var(--radius))) rotate(0deg);
-           animation: counter-rotate var(--duration) linear infinite,
-                      depth var(--duration) ease-in-out infinite;
-           transform-origin: 0 0;
-           color: #cbb4ff; /* muted lavender-gray */
-           text-shadow:
-             0 0 4px rgba(200,180,255,0.15),
-             0 0 8px rgba(200,180,255,0.1);
-           font-size: 0.875rem;
-         }
-         @keyframes spin {
-           from { transform: rotate(0deg); }
-           to { transform: rotate(360deg); }
-         }
-         @keyframes counter-rotate {
-           from { transform: rotate(0deg); }
-           to { transform: rotate(-360deg); }
-         }
-         @keyframes depth {
-           0%, 100% { opacity: 1; transform: scale(1.06); }
-           50% { opacity: 0.8; transform: scale(1); }
-         }
-         @media (prefers-reduced-motion: reduce) {
-           .orbit { animation: none; }
-           .orbit-item { animation: none; }
-         }
-         @media (max-width: 640px) {
-           /* Show only first two interests on mobile */
-           .orbit:nth-child(n+3) { display: none; }
-         }
-       `}</style>
+      {/* Global styles for orbital visualization */}
+      <style jsx global>{`
+        .orbit-system {
+          position: absolute;
+          inset: 0;
+          perspective: 800px;
+          transform-style: preserve-3d;
+          transition: transform 0.2s ease-out;
+        }
+        /* Subtle concentric rings – keep existing thin borders */
+        .orbit-ring {
+          position: absolute;
+          border: 1px solid rgba(255, 255, 255, 0.09);
+          border-radius: 50%;
+        }
+        /* Reduce motion for users */
+        @media (prefers-reduced-motion: reduce) {
+          .orbit-system {
+            transition: none;
+          }
+        }
+      `}</style>
      </main>
    );
  }
