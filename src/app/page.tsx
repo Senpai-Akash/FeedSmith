@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import NavBar from "@/components/landing/NavBar";
 import { motion } from "framer-motion";
+import { useRef, useEffect } from "react";
 
 const MoltenMetal = dynamic(
   () => import("@/components/moltenmetal/MoltenMetal"),
@@ -11,7 +12,58 @@ const MoltenMetal = dynamic(
   }
 );
 
+/**
+ * Orbital interest label visualization.
+ * Uses pure CSS animations – no React state updates each frame.
+ * The container applies a subtle mouse‑parallax tilt.
+ */
+function OrbitVisualization() {
+  const interests = [
+    { label: "AI", radius: 80, duration: 45 },
+    { label: "Programming", radius: 120, duration: 40 },
+    { label: "Cybersecurity", radius: 100, duration: 42 },
+    { label: "Cats", radius: 140, duration: 38 },
+  ];
+
+  return (
+    <>
+      {interests.map((it, idx) => (
+        <div
+          key={idx}
+          className="orbit"
+          style={{ "--duration": `${it.duration}s`, "--radius": `${it.radius}px` } as any}
+        >
+          <span className="orbit-item">{it.label}</span>
+        </div>
+      ))}
+    </>
+  );
+}
+
 export default function Home() {
+  const orbitSystemRef = useRef<HTMLDivElement>(null);
+
+  // Apply a subtle parallax tilt based on mouse movement.
+  useEffect(() => {
+    const container = orbitSystemRef.current;
+    if (!container) return;
+    const handle = (e: MouseEvent) => {
+      const { clientX, clientY } = e;
+      const rect = container.getBoundingClientRect();
+      const x = ((clientX - rect.left) / rect.width - 0.5) * 2; // -1 to 1
+      const y = ((clientY - rect.top) / rect.height - 0.5) * 2;
+      const rotateX = y * 4; // up to ~4deg
+      const rotateY = -x * 4;
+      container.style.transform = `rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+    };
+    const rafHandle = (e: MouseEvent) => requestAnimationFrame(() => handle(e));
+    window.addEventListener("mousemove", rafHandle);
+    return () => {
+      window.removeEventListener("mousemove", rafHandle);
+      if (container) container.style.transform = "";
+    };
+  }, []);
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#08050f] text-white">
 
@@ -138,41 +190,24 @@ export default function Home() {
               className="relative hidden aspect-square lg:block"
             >
 
-              <div className="absolute inset-0 rounded-full border border-white/10" />
+               {/* Orbital system – rings, central element, and orbiting labels */}
+               <div className="orbit-system" ref={orbitSystemRef}>
+                 {/* Concentric rings – remain static */}
+                 <div className="absolute inset-0 rounded-full border border-white/10" />
+                 <div className="absolute inset-[12%] rounded-full border border-white/10" />
+                 <div className="absolute inset-[25%] rounded-full border border-white/10" />
 
-              <div className="absolute inset-[12%] rounded-full border border-white/10" />
+                 {/* Central element */}
+                 <div className="absolute left-1/2 top-1/2 flex h-40 w-40 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-black/20 backdrop-blur-md">
+                   <div className="text-center">
+                     <div className="text-xs uppercase tracking-[0.25em] text-white/40">Feed</div>
+                     <div className="mt-2 text-xl font-medium">Intentional</div>
+                   </div>
+                 </div>
 
-              <div className="absolute inset-[25%] rounded-full border border-white/10" />
-
-              <div className="absolute left-1/2 top-1/2 flex h-40 w-40 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-black/20 backdrop-blur-md">
-
-                <div className="text-center">
-                  <div className="text-xs uppercase tracking-[0.25em] text-white/40">
-                    Feed
-                  </div>
-
-                  <div className="mt-2 text-xl font-medium">
-                    Intentional
-                  </div>
-                </div>
-
-              </div>
-
-              <div className="absolute left-[18%] top-[20%] text-sm text-white/70">
-                AI
-              </div>
-
-              <div className="absolute right-[15%] top-[30%] text-sm text-white/60">
-                Programming
-              </div>
-
-              <div className="absolute bottom-[22%] left-[20%] text-sm text-white/50">
-                Cybersecurity
-              </div>
-
-              <div className="absolute bottom-[18%] right-[25%] text-sm text-white/60">
-                Cats
-              </div>
+                 {/* Orbital interest labels */}
+                  <OrbitVisualization />
+               </div>
 
             </motion.div>
 
@@ -201,7 +236,58 @@ export default function Home() {
           </div>
         </section>
 
-      </div>
-    </main>
-  );
-}
+       </div>
+       {/* Global styles for orbital visualization */}
+       <style jsx global>{`
+         .orbit-system {
+           position: absolute;
+           inset: 0;
+           perspective: 800px;
+           transform-style: preserve-3d;
+           transition: transform 0.2s ease-out;
+         }
+         .orbit {
+           position: absolute;
+           inset: 0;
+           transform-origin: center;
+           animation: spin var(--duration) linear infinite;
+         }
+         .orbit-item {
+           position: absolute;
+           top: 50%;
+           left: 50%;
+           /* Move outwards by radius */
+           transform: translate(-50%, calc(-1 * var(--radius))) rotate(0deg);
+           animation: counter-rotate var(--duration) linear infinite,
+                      depth var(--duration) ease-in-out infinite;
+           transform-origin: 0 0;
+           color: #cbb4ff; /* muted lavender-gray */
+           text-shadow:
+             0 0 4px rgba(200,180,255,0.15),
+             0 0 8px rgba(200,180,255,0.1);
+           font-size: 0.875rem;
+         }
+         @keyframes spin {
+           from { transform: rotate(0deg); }
+           to { transform: rotate(360deg); }
+         }
+         @keyframes counter-rotate {
+           from { transform: rotate(0deg); }
+           to { transform: rotate(-360deg); }
+         }
+         @keyframes depth {
+           0%, 100% { opacity: 1; transform: scale(1.06); }
+           50% { opacity: 0.8; transform: scale(1); }
+         }
+         @media (prefers-reduced-motion: reduce) {
+           .orbit { animation: none; }
+           .orbit-item { animation: none; }
+         }
+         @media (max-width: 640px) {
+           /* Show only first two interests on mobile */
+           .orbit:nth-child(n+3) { display: none; }
+         }
+       `}</style>
+     </main>
+   );
+ }
