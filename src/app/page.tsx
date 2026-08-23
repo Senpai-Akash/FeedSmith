@@ -19,20 +19,33 @@ const MoltenMetal = dynamic(
  */
 function OrbitVisualization() {
   // Define each interest with its orbit radius (px) and orbit period (seconds).
+  // Define each interest with its orbit radius (px) and orbit period (seconds).
+  // Added all required interests and a placeholder percentage for each.
   const interests = [
     // Outer orbit
-    { label: "Programming", radius: 120, period: 36, ring: "outer", initialAngle: 0 },
-    // Middle orbit
-    { label: "AI", radius: 95, period: 38, ring: "middle", initialAngle: Math.PI / 2 },
-    { label: "Cats", radius: 95, period: 34, ring: "middle", initialAngle: (3 * Math.PI) / 2 },
-    // Inner orbit
-    { label: "Cybersecurity", radius: 70, period: 42, ring: "inner", initialAngle: Math.PI },
+    { label: "Programming", radius: 300, period: 36, ring: "outer", initialAngle: 0, percent: 85 },
+    // Middle‑outer orbit
+    { label: "AI", radius: 250, period: 38, ring: "middle", initialAngle: Math.PI / 2, percent: 78 },
+    // Middle‑inner orbit
+    { label: "Cybersecurity", radius: 200, period: 42, ring: "inner", initialAngle: Math.PI, percent: 70 },
+    // Inner orbit group – additional topics
+    { label: "Design", radius: 150, period: 44, ring: "inner", initialAngle: Math.PI / 4, percent: 65 },
+    { label: "Gaming", radius: 120, period: 46, ring: "inner", initialAngle: (3 * Math.PI) / 4, percent: 60 },
+    { label: "Science", radius: 90, period: 48, ring: "inner", initialAngle: (5 * Math.PI) / 4, percent: 55 },
+    { label: "Technology", radius: 60, period: 50, ring: "inner", initialAngle: (7 * Math.PI) / 4, percent: 50 },
   ];
 
   // Create a ref for each label element to update its transform directly.
   const labelRefs = useRef<Array<HTMLDivElement | null>>([]);
 
+  // Compute distinct radii for static concentric rings.
+  const uniqueRadii = Array.from(new Set(interests.map(it => it.radius))).sort((a, b) => b - a);
+
   useEffect(() => {
+    // Respect users who prefer reduced motion.
+    if (typeof window !== "undefined" && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      return;
+    }
     let animationFrame: number;
     const start = performance.now();
 
@@ -45,23 +58,39 @@ function OrbitVisualization() {
         const y = Math.sin(angle) * it.radius;
         const el = labelRefs.current[i];
         if (el) {
-          // Position relative to the centre (left:50%, top:50%).
           el.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px)`;
         }
       });
       animationFrame = requestAnimationFrame(animate);
     };
+
+    // Kick‑off the animation loop.
     animationFrame = requestAnimationFrame(animate);
+
+    // Cleanup on unmount.
     return () => cancelAnimationFrame(animationFrame);
   }, []);
-
   return (
-    <>
+    <div className="orbit-system" style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+      {/* Render concentric rings for visual reference */}
+      {uniqueRadii.map((r, i) => (
+        <div
+          key={`ring-${i}`}
+          className="orbit-ring"
+          style={{
+            width: `${r * 2}px`,
+            height: `${r * 2}px`,
+            left: "50%",
+            top: "50%",
+            transform: "translate(-50%, -50%)",
+          }}
+        />
+      ))}
+      {/* Render the orbital labels */}
       {interests.map((it, idx) => (
         <div
           key={idx}
-          className="orbit-label"
-          ref={el => { labelRefs.current[idx] = el; }}
+          ref={el => {labelRefs.current[idx] = el}}
           style={{
             position: "absolute",
             left: "50%",
@@ -74,10 +103,19 @@ function OrbitVisualization() {
           } as React.CSSProperties}
         >
           {it.label}
+          <span
+            style={{
+              marginLeft: "0.25rem",
+              fontSize: "0.75rem",
+              color: "rgba(150,100,255,0.6)",
+            }}
+          >
+            {it.percent}%
+          </span>
         </div>
       ))}
-    </>
-  );
+    </div>
+   );
 }
 
 export default function Home() {
@@ -129,8 +167,8 @@ export default function Home() {
         opacity={0.75}
       />
 
-      {/* Content layer */}
-      <div className="relative z-10">
+        {/* Content layer */}
+        <div className="relative z-10">
 
        {/* Navbar */}
        <NavBar />
@@ -230,23 +268,17 @@ export default function Home() {
               className="relative hidden aspect-square lg:block"
             >
 
-               {/* Orbital system – rings, central element, and orbiting labels */}
-               <div className="orbit-system" ref={orbitSystemRef}>
-                 {/* Concentric rings – remain static */}
-                 <div className="absolute inset-0 rounded-full border border-white/10" />
-                 <div className="absolute inset-[12%] rounded-full border border-white/10" />
-                 <div className="absolute inset-[25%] rounded-full border border-white/10" />
-
-                 {/* Central element */}
-                 <div className="absolute left-1/2 top-1/2 flex h-40 w-40 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-black/20 backdrop-blur-md">
-                   <div className="text-center">
-                     <div className="text-xs uppercase tracking-[0.25em] text-white/40">Feed</div>
-                     <div className="mt-2 text-xl font-medium">Intentional</div>
-                   </div>
-                 </div>
-
-                 {/* Orbital interest labels */}
+                {/* Orbital system – integrated visualization */}
+                <div className="orbit-system" ref={orbitSystemRef}>
                   <OrbitVisualization />
+                  <div className="absolute inset-[25%] rounded-full border border-white/10" />
+                  {/* Central element */}
+                  <div className="absolute left-1/2 top-1/2 flex h-40 w-40 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-black/20 backdrop-blur-md">
+                    <div className="text-center">
+                      <div className="text-xs uppercase tracking-[0.25em] text-white/40">Feed</div>
+                      <div className="mt-2 text-xl font-medium">Intentional</div>
+                  </div>
+                </div>
                </div>
 
             </motion.div>
