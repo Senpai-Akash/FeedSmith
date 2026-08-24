@@ -1,0 +1,30 @@
+.orbitSystem {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* Orbit rings – size is set via inline width/height, but keep base styling */
+.orbitRing {
+  position: absolute;
+}
+
+/* Individual label items */
+.orbitItem {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  color: rgba(205, 195, 230, 0.72);
+  text-shadow: 0 0 10px rgba(150, 100, 255, 0.22);
+  opacity: 0.75;
+  font-size: 0.875rem;
+  pointer-events: none;
+}
+
+/* Reduced motion safeguard */
+@media (prefers-reduced-motion: reduce) {
+  .orbitSystem,
+  .orbitItem {
+    transition: none;
+  }
+}

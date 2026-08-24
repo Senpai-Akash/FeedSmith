@@ -4,6 +4,8 @@ import dynamic from "next/dynamic";
 import NavBar from "@/components/landing/NavBar";
 import { motion } from "framer-motion";
 import { useRef, useEffect } from "react";
+import OrbitVisualization from '@/components/landing/OrbitVisualization';
+import styles from '@/components/landing/OrbitVisualization.module.css';
 
 const MoltenMetal = dynamic(
   () => import("@/components/moltenmetal/MoltenMetal"),
@@ -12,118 +14,13 @@ const MoltenMetal = dynamic(
   }
 );
 
-/**
- * Orbital interest label visualization.
- * Positions each label using JavaScript‑driven trigonometry so the text never rotates.
- * The parent container (orbit-system) may have a subtle mouse‑parallax tilt applied.
- */
-function OrbitVisualization() {
-  // Define each interest with its orbit radius (px) and orbit period (seconds).
-  // Define each interest with its orbit radius (px) and orbit period (seconds).
-  // Added all required interests and a placeholder percentage for each.
-  const interests = [
-    // Outer orbit
-    { label: "Programming", radius: 300, period: 36, ring: "outer", initialAngle: 0, percent: 85 },
-    // Middle‑outer orbit
-    { label: "AI", radius: 250, period: 38, ring: "middle", initialAngle: Math.PI / 2, percent: 78 },
-    // Middle‑inner orbit
-    { label: "Cybersecurity", radius: 200, period: 42, ring: "inner", initialAngle: Math.PI, percent: 70 },
-    // Inner orbit group – additional topics
-    { label: "Design", radius: 150, period: 44, ring: "inner", initialAngle: Math.PI / 4, percent: 65 },
-    { label: "Gaming", radius: 120, period: 46, ring: "inner", initialAngle: (3 * Math.PI) / 4, percent: 60 },
-    { label: "Science", radius: 90, period: 48, ring: "inner", initialAngle: (5 * Math.PI) / 4, percent: 55 },
-    { label: "Technology", radius: 60, period: 50, ring: "inner", initialAngle: (7 * Math.PI) / 4, percent: 50 },
-  ];
-
-  // Create a ref for each label element to update its transform directly.
-  const labelRefs = useRef<Array<HTMLDivElement | null>>([]);
-
-  // Compute distinct radii for static concentric rings.
-  const uniqueRadii = Array.from(new Set(interests.map(it => it.radius))).sort((a, b) => b - a);
-
-  useEffect(() => {
-    // Respect users who prefer reduced motion.
-    if (typeof window !== "undefined" && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      return;
-    }
-    let animationFrame: number;
-    const start = performance.now();
-
-    const animate = (now: number) => {
-      const elapsed = (now - start) / 1000; // seconds
-      interests.forEach((it, i) => {
-        const angularSpeed = (2 * Math.PI) / it.period; // rad/s
-        const angle = it.initialAngle + angularSpeed * elapsed;
-        const x = Math.cos(angle) * it.radius;
-        const y = Math.sin(angle) * it.radius;
-        const el = labelRefs.current[i];
-        if (el) {
-          el.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px)`;
-        }
-      });
-      animationFrame = requestAnimationFrame(animate);
-    };
-
-    // Kick‑off the animation loop.
-    animationFrame = requestAnimationFrame(animate);
-
-    // Cleanup on unmount.
-    return () => cancelAnimationFrame(animationFrame);
-  }, []);
-  return (
-    <div className="orbit-system" style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
-      {/* Render concentric rings for visual reference */}
-      {uniqueRadii.map((r, i) => (
-        <div
-          key={`ring-${i}`}
-          className="orbit-ring"
-          style={{
-            width: `${r * 2}px`,
-            height: `${r * 2}px`,
-            left: "50%",
-            top: "50%",
-            transform: "translate(-50%, -50%)",
-          }}
-        />
-      ))}
-      {/* Render the orbital labels */}
-      {interests.map((it, idx) => (
-        <div
-          key={idx}
-          ref={el => {labelRefs.current[idx] = el}}
-          style={{
-            position: "absolute",
-            left: "50%",
-            top: "50%",
-            color: "rgba(205, 195, 230, 0.72)",
-            textShadow: "0 0 10px rgba(150, 100, 255, 0.22)",
-            opacity: 0.75,
-            fontSize: "0.875rem",
-            pointerEvents: "none",
-          } as React.CSSProperties}
-        >
-          {it.label}
-          <span
-            style={{
-              marginLeft: "0.25rem",
-              fontSize: "0.75rem",
-              color: "rgba(150,100,255,0.6)",
-            }}
-          >
-            {it.percent}%
-          </span>
-        </div>
-      ))}
-    </div>
-   );
-}
 
 export default function Home() {
-  const orbitSystemRef = useRef<HTMLDivElement>(null);
+  const orbitRef = useRef<HTMLDivElement>(null);
 
   // Apply a subtle parallax tilt based on mouse movement.
   useEffect(() => {
-    const container = orbitSystemRef.current;
+    const container = orbitRef.current;
     if (!container) return;
     const handle = (e: MouseEvent) => {
       const { clientX, clientY } = e;
@@ -269,7 +166,7 @@ export default function Home() {
             >
 
                 {/* Orbital system – integrated visualization */}
-                <div className="orbit-system" ref={orbitSystemRef}>
+                <div className={styles.orbitSystem} ref={orbitRef}>
                   <OrbitVisualization />
                   <div className="absolute inset-[25%] rounded-full border border-white/10" />
                   {/* Central element */}
