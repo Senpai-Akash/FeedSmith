@@ -5,6 +5,10 @@ import NavBar from "@/components/landing/NavBar";
 import { motion } from "framer-motion";
 import { useRef, useEffect } from "react";
 import OrbitVisualization from '@/components/landing/OrbitVisualization';
+import SignalSection from '@/components/landing/SignalSection';
+import TakeControlSection from '@/components/landing/TakeControlSection';
+import YourFeedSection from '@/components/landing/YourFeedSection';
+import HowItWorksSection from '@/components/landing/HowItWorksSection';
 import styles from '@/components/landing/OrbitVisualization.module.css';
 
 const MoltenMetal = dynamic(

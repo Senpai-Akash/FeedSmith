@@ -1,8 +1,20 @@
 import React, { useRef, useEffect } from 'react';
 import styles from './OrbitVisualization.module.css';
 
-function OrbitVisualization() {
-  const interests = [
+export interface OrbitVisualizationProps {
+  /** Data for each orbital ring */
+  interests?: Array<{
+    label: string;
+    radius: number;
+    period: number;
+    percent?: number;
+    initialAngle?: number;
+  }>;
+}
+
+
+export default function OrbitVisualization({
+  interests = [
     // Outer orbit
     { label: 'Programming', radius: 300, period: 36, initialAngle: 0, percent: 85 },
     // Middle‑outer orbit
@@ -14,19 +26,17 @@ function OrbitVisualization() {
     { label: 'Gaming', radius: 120, period: 46, initialAngle: (3 * Math.PI) / 4, percent: 60 },
     { label: 'Science', radius: 90, period: 48, initialAngle: (5 * Math.PI) / 4, percent: 55 },
     { label: 'Technology', radius: 60, period: 50, initialAngle: (7 * Math.PI) / 4, percent: 50 },
-  ];
-
-  // Create a ref for each label element to update its transform directly.
+  ],
+} : OrbitVisualizationProps) {
   const labelRefs = useRef<Array<HTMLDivElement | null>>([]);
-
-  // Compute distinct radii for static concentric rings.
   const uniqueRadii = Array.from(new Set(interests.map(it => it.radius))).sort((a, b) => b - a);
 
-  // Respect users who prefer reduced motion.
   useEffect(() => {
+    // Respect reduced‑motion preferences
     if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       return;
     }
+
     let animationFrame: number;
     const start = performance.now();
 
@@ -34,7 +44,7 @@ function OrbitVisualization() {
       const elapsed = (now - start) / 1000; // seconds
       interests.forEach((it, i) => {
         const angularSpeed = (2 * Math.PI) / it.period; // rad/s
-        const angle = it.initialAngle + angularSpeed * elapsed;
+        const angle = (it.initialAngle ?? 0) + angularSpeed * elapsed;
         const x = Math.cos(angle) * it.radius;
         const y = Math.sin(angle) * it.radius;
         const el = labelRefs.current[i];
@@ -45,15 +55,13 @@ function OrbitVisualization() {
       animationFrame = requestAnimationFrame(animate);
     };
 
-    // Kick‑off the animation loop.
     animationFrame = requestAnimationFrame(animate);
 
-    // Cleanup on unmount.
     return () => cancelAnimationFrame(animationFrame);
-  }, []);
+  }, [interests]);
 
   return (
-    <>
+    <div className={styles.orbitSystem}>
       {/* Render concentric rings for visual reference */}
       {uniqueRadii.map((r, i) => (
         <div
@@ -99,8 +107,7 @@ function OrbitVisualization() {
           </span>
         </div>
       ))}
-    </>
+    </div>
   );
 }
 
-export default OrbitVisualization;
