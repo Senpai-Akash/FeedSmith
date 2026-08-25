@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import OrbitVisualization from "@/components/landing/OrbitVisualization";
-import { loadPreferences, savePreferences, FeedPreference, Interest } from "@/app/lib/feedPreferences";
+import { loadPreferences, savePreferences, FeedPreference, Interest } from "@/lib/feed/preferences";
 
 // Initial static list of interests
 const INTERESTS: Interest[] = [

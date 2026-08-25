@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import OrbitVisualization from "@/components/landing/OrbitVisualization";
-import { loadPreferences } from "@/app/lib/feedPreferences";
+import { loadPreferences } from "@/lib/feed/preferences";
 import { useEffect, useState } from "react";
 
 export default function ProfilePage() {

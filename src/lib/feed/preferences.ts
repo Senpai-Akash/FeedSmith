@@ -1,19 +1,6 @@
-"use client";
+export type { Interest, FeedPreference, FeedPreferences } from "./types";
 
-export interface Interest {
-  id: string;
-  name: string;
-}
-
-export interface FeedPreference {
-  id: string;
-  name: string;
-  strength: number; // 0-100
-}
-
-export interface FeedPreferences {
-  interests: FeedPreference[];
-}
+import { FeedPreferences } from "./types";
 
 const STORAGE_KEY = "feedPreferences";
 
