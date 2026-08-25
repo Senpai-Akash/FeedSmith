@@ -143,7 +143,7 @@ export default function Home() {
                   duration: 0.8,
                   delay: 0.3,
                 }}
-                href="#start"
+                href="/build"
                 className="mt-10 inline-flex items-center rounded-full bg-white px-7 py-3.5 text-sm font-medium text-black transition hover:scale-[1.03]"
               >
                 Build my feed
