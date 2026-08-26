@@ -1,6 +1,11 @@
 export interface Interest {
   id: string;
   name: string;
+  /**
+   * A broad category used for later signal summarisation.
+   * Not required for the current UI but makes the model flexible for future algorithms.
+   */
+  category?: string;
 }
 
 export interface FeedPreference {
@@ -9,6 +14,25 @@ export interface FeedPreference {
   strength: number; // 0-100
 }
 
+/**
+ * Represents a content‑style preference such as "Educational" or "Entertainment".
+ * Each has a strength between 0 and 100.
+ */
+export interface ContentPreference {
+  id: string; // e.g. "educational"
+  name: string; // display name
+  strength: number; // 0‑100
+}
+
+/**
+ * Simple string identifiers for filters that the user wants to avoid.
+ */
+export type FeedFilter = string;
+
 export interface FeedPreferences {
   interests: FeedPreference[];
+  /** Optional content‑style preferences */
+  contentPreferences?: ContentPreference[];
+  /** Optional list of filter identifiers the user wants to avoid */
+  filters?: FeedFilter[];
 }

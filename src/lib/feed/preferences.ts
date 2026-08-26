@@ -12,10 +12,14 @@ export function loadPreferences(): FeedPreferences {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return { interests: [] };
     const parsed = JSON.parse(raw);
-    return { interests: parsed.interests ?? [] };
+    return {
+      interests: parsed.interests ?? [],
+      contentPreferences: parsed.contentPreferences ?? [],
+      filters: parsed.filters ?? [],
+    };
   } catch (e) {
     console.error("Failed to load feed preferences", e);
-    return { interests: [] };
+    return { interests: [], contentPreferences: [], filters: [] };
   }
 }
 
