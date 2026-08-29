@@ -1,13 +1,5 @@
 "use client";
 
-/**
- * /build/profile – a polished, read‑only view of the user's feed preferences.
- * The page visualises the saved signal, lists interests, content style weights,
- * active filters, provides a deterministic summary, and shows a few high‑level
- * statistics. All data is sourced from the existing `loadPreferences` helper –
- * no new models are introduced.
- */
-
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import OrbitVisualization from "@/components/landing/OrbitVisualization";
