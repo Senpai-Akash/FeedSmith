@@ -80,10 +80,10 @@ export default function FeedPage() {
                     <img
                       src={item.content.image}
                       alt={item.content.title}
-                      className={idx === 0 ? "w-full h-64 object-cover rounded" : "w-32 h-32 object-cover rounded"}
+                      className={idx === 0 ? "w-32 h-auto object-cover rounded" : "w-32 h-auto object-cover rounded"}
                     />
                   )}
-                  <div className="flex-1">
+                  <div className="flex">
                     <div className="flex items-center justify-between">
                       <h2 className="text-xl font-semibold text-white">
                         {item.content.title}
