@@ -384,7 +384,11 @@ export default function BuildPage() {
               </div>
             </div>
 
-            <aside className="relative min-h-[360px] overflow-hidden rounded-lg border border-white/10 bg-black/20 backdrop-blur-md md:min-h-[520px]">
+            {/* Ensure the visualisation container stays square so the orbit map renders as a circle */}
+            <aside
+              className="relative overflow-hidden rounded-lg border border-white/10 bg-black/20 backdrop-blur-md"
+              style={{ aspectRatio: '1', minWidth: '360px', minHeight: '360px' }}
+            >
               <div className="absolute left-6 top-6 z-10">
                 <p className="text-xs font-medium uppercase tracking-[0.24em] text-white/35">
                   Live signal
