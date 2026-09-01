@@ -87,7 +87,6 @@ export default function ProfilePage() {
         {/* Left column – textual sections */}
         <div className="flex-1 space-y-10">
           {/* Interest Signal */}
-          <section>
             <h2 className="mb-4 text-xl font-medium">INTEREST SIGNAL</h2>
             <ul className="space-y-3">
               {sortedInterests.map((interest, idx) => (
@@ -106,7 +105,6 @@ export default function ProfilePage() {
                 </li>
               ))}
             </ul>
-          </section>
 
           {/* Content DNA */}
           <section>
