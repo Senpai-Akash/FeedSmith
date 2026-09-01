@@ -36,3 +36,25 @@ export interface FeedPreferences {
   /** Optional list of filter identifiers the user wants to avoid */
   filters?: FeedFilter[];
 }
+
+/**
+ * Blueprint representing the deterministic signal derived from a user's preferences.
+ * It categorises interests into primary and secondary groups, includes content style
+ * preferences, suppressed topics, an overall strength metric and a human‑readable
+ * summary. This shape is used on the profile page to give the user a concise view of
+ * their configuration before any Instagram integration.
+ */
+export interface SignalBlueprint {
+  /** Strongest interests – by default the top two by strength */
+  primaryInterests: FeedPreference[];
+  /** Remaining interests after the primary ones */
+  secondaryInterests: FeedPreference[];
+  /** Content‑type preferences, sorted by strength */
+  contentPreferences: ContentPreference[];
+  /** List of filter identifiers the user wishes to suppress */
+  suppressed: FeedFilter[];
+  /** Overall signal strength – average of interest strengths (0‑100) */
+  overallStrength: number;
+  /** Human‑readable description of the signal */
+  summary: string;
+}
