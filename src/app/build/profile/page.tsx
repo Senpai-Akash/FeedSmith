@@ -7,6 +7,10 @@ import { loadPreferences } from "@/lib/feed/preferences";
 import { generateSignalSummary } from "@/lib/feed/summary";
 import { FeedPreferences } from "@/lib/feed/types";
 
+import { generateSignalBlueprint } from "@/lib/feed/blueprint";
+import { getInstagramAnalysis } from "@/lib/instagram/client";
+import { mapInstagramAnalysisToSignalMap } from "@/lib/instagram/mapper";
+import { generateIntelligence } from "@/lib/feed/signalIntelligence";
 /** Convert a 0‑100 strength value to a visual radius used by the orbit viz. */
 function strengthToRadius(strength: number): number {
   const maxRadius = 260;
