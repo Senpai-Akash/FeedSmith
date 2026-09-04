@@ -58,3 +58,92 @@ export interface SignalBlueprint {
   /** Human‑readable description of the signal */
   summary: string;
 }
+
+export type TrainingPlatform = "instagram" | "youtube" | "tiktok";
+
+export type TrainingActionType =
+  | "WATCH"
+  | "SEARCH"
+  | "FOLLOW"
+  | "SUBSCRIBE"
+  | "ENGAGE"
+  | "AVOID";
+
+export interface CreatorRecommendation {
+  id: string;
+  name: string;
+  platform: TrainingPlatform;
+  topics: string[];
+  url?: string;
+  description: string;
+}
+
+export interface TrainingActionBase {
+  id: string;
+  type: TrainingActionType;
+  title: string;
+  description: string;
+  why: string;
+}
+
+export interface WatchTrainingAction extends TrainingActionBase {
+  type: "WATCH";
+  topic: string;
+  topicName: string;
+  count: number;
+  contentType: string;
+  contentPreferenceName: string;
+  platform: TrainingPlatform;
+}
+
+export interface SearchTrainingAction extends TrainingActionBase {
+  type: "SEARCH";
+  topic: string;
+  topicName: string;
+  query: string;
+  platform: TrainingPlatform;
+}
+
+export interface CreatorTrainingAction extends TrainingActionBase {
+  type: "FOLLOW" | "SUBSCRIBE";
+  topic: string;
+  topicName: string;
+  creator: CreatorRecommendation;
+}
+
+export interface EngageTrainingAction extends TrainingActionBase {
+  type: "ENGAGE";
+  topic?: string;
+  topicName?: string;
+}
+
+export interface AvoidTrainingAction extends TrainingActionBase {
+  type: "AVOID";
+  filter: FeedFilter;
+}
+
+export type TrainingAction =
+  | WatchTrainingAction
+  | SearchTrainingAction
+  | CreatorTrainingAction
+  | EngageTrainingAction
+  | AvoidTrainingAction;
+
+export interface FeedTrainingDay {
+  day: number;
+  stage:
+    | "ESTABLISH"
+    | "REINFORCE"
+    | "STRENGTHEN"
+    | "EXPAND"
+    | "DEEPEN"
+    | "REFINE"
+    | "MAINTAIN";
+  goal: string;
+  actions: TrainingAction[];
+}
+
+export interface FeedTrainingPlan {
+  platform: TrainingPlatform;
+  days: FeedTrainingDay[];
+}

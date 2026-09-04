@@ -1,21 +1,100 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import OrbitVisualization from "@/components/landing/OrbitVisualization";
-import { loadPreferences } from "@/lib/feed/preferences";
-import { generateSignalSummary } from "@/lib/feed/summary";
-import { FeedPreferences } from "@/lib/feed/types";
-
+import { AnimatePresence, motion } from "framer-motion";
+import { useEffect, useMemo, useState } from "react";
 import { generateSignalBlueprint } from "@/lib/feed/blueprint";
-import { getInstagramAnalysis } from "@/lib/instagram/client";
-import { mapInstagramAnalysisToSignalMap } from "@/lib/instagram/mapper";
-import { generateIntelligence } from "@/lib/feed/signalIntelligence";
-/** Convert a 0‑100 strength value to a visual radius used by the orbit viz. */
-function strengthToRadius(strength: number): number {
-  const maxRadius = 260;
-  const minRadius = 80;
-  return Math.round(maxRadius - (strength / 100) * (maxRadius - minRadius));
+import { loadPreferences } from "@/lib/feed/preferences";
+import { generateFeedTrainingPlan } from "@/lib/feed/training";
+import {
+  FeedPreferences,
+  FeedTrainingDay,
+  TrainingAction,
+  TrainingActionType,
+} from "@/lib/feed/types";
+
+const PROGRESS_STORAGE_KEY = "feedTrainingProgress";
+
+type TrainingProgress = {
+  planKey: string;
+  completed: Record<string, boolean>;
+};
+
+const ACTION_ORDER: TrainingActionType[] = [
+  "WATCH",
+  "SEARCH",
+  "FOLLOW",
+  "SUBSCRIBE",
+  "ENGAGE",
+  "AVOID",
+];
+
+const ACTION_LABELS: Record<TrainingActionType, string> = {
+  WATCH: "WATCH",
+  SEARCH: "SEARCH",
+  FOLLOW: "FOLLOW",
+  SUBSCRIBE: "SUBSCRIBE",
+  ENGAGE: "ENGAGE",
+  AVOID: "AVOID",
+};
+
+function loadTrainingProgress(planKey: string): TrainingProgress {
+  if (typeof window === "undefined") {
+    return { planKey, completed: {} };
+  }
+
+  try {
+    const raw = localStorage.getItem(PROGRESS_STORAGE_KEY);
+    if (!raw) return { planKey, completed: {} };
+
+    const parsed = JSON.parse(raw) as Partial<TrainingProgress>;
+    if (parsed.planKey !== planKey || !parsed.completed) {
+      return { planKey, completed: {} };
+    }
+
+    return {
+      planKey,
+      completed: parsed.completed,
+    };
+  } catch {
+    return { planKey, completed: {} };
+  }
+}
+
+function saveTrainingProgress(progress: TrainingProgress): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(PROGRESS_STORAGE_KEY, JSON.stringify(progress));
+}
+
+function planStorageKey(days: FeedTrainingDay[]): string {
+  return days
+    .flatMap(day => day.actions.map(action => action.id))
+    .join("|");
+}
+
+function groupedActions(day: FeedTrainingDay): [TrainingActionType, TrainingAction[]][] {
+  return ACTION_ORDER.map(
+    (type): [TrainingActionType, TrainingAction[]] => [
+      type,
+      day.actions.filter(action => action.type === type),
+    ]
+  ).filter(([, actions]) => actions.length > 0);
+}
+
+function actionDetail(action: TrainingAction): string | undefined {
+  if (action.type === "WATCH") {
+    return `${action.contentPreferenceName} · ${action.platform}`;
+  }
+
+  if (action.type === "SEARCH") {
+    return action.topicName;
+  }
+
+  if (action.type === "FOLLOW" || action.type === "SUBSCRIBE") {
+    return `${action.topicName} · ${action.creator.platform}`;
+  }
+
+  return undefined;
 }
 
 export default function ProfilePage() {
@@ -24,190 +103,340 @@ export default function ProfilePage() {
     contentPreferences: [],
     filters: [],
   });
+  const [hasLoadedPreferences, setHasLoadedPreferences] = useState(false);
+  const [dayIndex, setDayIndex] = useState(0);
+  const [progress, setProgress] = useState<TrainingProgress>({
+    planKey: "",
+    completed: {},
+  });
 
-  // Load persisted preferences once on mount.
   useEffect(() => {
-    const stored = loadPreferences();
-    setPrefs({
-      interests: stored.interests ?? [],
-      contentPreferences: stored.contentPreferences ?? [],
-      filters: stored.filters ?? [],
-    });
+    const timeout = window.setTimeout(() => {
+      const stored = loadPreferences();
+      setPrefs({
+        interests: stored.interests ?? [],
+        contentPreferences: stored.contentPreferences ?? [],
+        filters: stored.filters ?? [],
+      });
+      setHasLoadedPreferences(true);
+    }, 0);
+
+    return () => window.clearTimeout(timeout);
   }, []);
 
-  // Interests sorted by descending strength.
-  const sortedInterests = [...(prefs.interests ?? [])].sort((a, b) => b.strength - a.strength);
+  const blueprint = useMemo(() => generateSignalBlueprint(prefs), [prefs]);
+  const plan = useMemo(() => generateFeedTrainingPlan(blueprint), [blueprint]);
+  const storageKey = useMemo(() => planStorageKey(plan.days), [plan.days]);
+  const currentDay = plan.days[dayIndex];
+  const sortedInterests = useMemo(
+    () => [...prefs.interests].sort((a, b) => b.strength - a.strength),
+    [prefs.interests]
+  );
+  const sortedContentPreferences = useMemo(
+    () =>
+      [...(prefs.contentPreferences ?? [])].sort(
+        (a, b) => b.strength - a.strength || a.name.localeCompare(b.name)
+      ),
+    [prefs.contentPreferences]
+  );
 
-  // Data formatted for the orbit visualisation component.
-  const vizData = sortedInterests.map((interest, idx) => ({
-    label: interest.name,
-    radius: strengthToRadius(interest.strength),
-    period: 38 + idx * 2,
-    percent: interest.strength,
-    initialAngle: (idx * Math.PI) / 3,
-  }));
+  useEffect(() => {
+    if (!hasLoadedPreferences) return;
+    const timeout = window.setTimeout(() => {
+      setProgress(loadTrainingProgress(storageKey));
+    }, 0);
 
-  // Statistics for the "Signal Statistics" section.
-  const activeInterests = sortedInterests.length;
-  const avgStrength = activeInterests
-    ? Math.round(sortedInterests.reduce((sum, i) => sum + i.strength, 0) / activeInterests)
+    return () => window.clearTimeout(timeout);
+  }, [hasLoadedPreferences, storageKey]);
+
+  useEffect(() => {
+    if (!progress.planKey) return;
+    saveTrainingProgress(progress);
+  }, [progress]);
+
+  const completedCount = currentDay.actions.filter(
+    action => progress.completed[action.id]
+  ).length;
+  const totalActions = currentDay.actions.length;
+  const progressPercent = totalActions
+    ? Math.round((completedCount / totalActions) * 100)
     : 0;
-  const contentCount = prefs.contentPreferences?.length ?? 0;
-  const filterCount = prefs.filters?.length ?? 0;
 
-  // Deterministic human‑readable summary.
-  const signalSummary = generateSignalSummary(prefs);
+  const toggleAction = (actionId: string) => {
+    setProgress(current => ({
+      planKey: storageKey,
+      completed: {
+        ...current.completed,
+        [actionId]: !current.completed[actionId],
+      },
+    }));
+  };
 
-  // If the user has not built any signal yet, show a friendly empty state.
-  if (activeInterests === 0 && contentCount === 0 && filterCount === 0) {
+  if (!hasLoadedPreferences) {
     return (
-      <section className="min-h-screen bg-black/30 text-white flex items-center justify-center py-12">
-        <div className="text-center">
-          <h1 className="mb-4 text-3xl font-medium">No signal built yet</h1>
+      <main className="min-h-screen bg-[#08050f] text-white" />
+    );
+  }
+
+  if (sortedInterests.length === 0) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#08050f] px-6 text-white">
+        <div className="max-w-md text-center">
+          <p className="text-xs font-medium uppercase tracking-[0.3em] text-white/35">
+            FeedSmith
+          </p>
+          <h1 className="mt-4 text-3xl font-medium">No signal built yet</h1>
+          <p className="mt-3 text-sm leading-6 text-white/55">
+            Choose the topics you want first, then FeedSmith can turn them into
+            a practical feed training plan.
+          </p>
           <Link
             href="/build"
-            className="rounded bg-violet-500 px-5 py-2 text-white transition hover:bg-violet-600"
+            className="mt-7 inline-flex rounded-full bg-white px-5 py-3 text-sm font-medium text-black transition hover:scale-[1.02]"
           >
-            Build your signal →
+            Build your signal
           </Link>
         </div>
-      </section>
+      </main>
     );
   }
 
   return (
-    <section className="min-h-screen bg-black/30 text-white py-12">
-      {/* Header */}
-      <header className="mx-auto max-w-5xl px-6 text-center lg:text-left">
-        <p className="text-xs font-medium uppercase tracking-widest text-white/40">YOUR SIGNAL</p>
-        <h1 className="mt-2 text-3xl font-medium lg:text-4xl">Your feed, decoded.</h1>
-        <p className="mt-2 max-w-xl text-sm text-white/70">
-          A visual breakdown of what FeedSmith understands about your preferences.
-        </p>
-      </header>
+    <main className="min-h-screen overflow-hidden bg-[#08050f] text-white">
+      <section className="relative px-6 py-8 md:py-12">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_22%_10%,rgba(168,85,247,0.22),transparent_34%),radial-gradient(circle_at_78%_14%,rgba(45,212,191,0.12),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.04),transparent_42%)]" />
+        <div className="relative mx-auto flex max-w-6xl flex-col gap-8">
+          <header className="flex flex-col gap-5 border-b border-white/10 pb-8 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-[0.32em] text-white/40">
+                FeedSmith
+              </p>
+              <h1 className="mt-4 text-4xl font-medium leading-tight md:text-6xl">
+                Your Feed Training Plan
+              </h1>
+              <p className="mt-4 max-w-2xl text-base leading-7 text-white/55">
+                Based on the feed you told us you want. FeedSmith does not
+                control the recommendation system; it gives you a daily mission
+                so you can shape your own signal intentionally.
+              </p>
+            </div>
+            <Link
+              href="/build"
+              className="w-fit rounded-full border border-white/15 px-5 py-3 text-sm font-medium text-white/65 transition hover:border-white/35 hover:text-white"
+            >
+              Edit signal
+            </Link>
+          </header>
 
-      {/* Two‑column layout: text on the left, viz on the right */}
-      <div className="mx-auto mt-10 max-w-7xl px-6 lg:flex lg:gap-12">
-        {/* Left column – textual sections */}
-        <div className="flex-1 space-y-10">
-          {/* Interest Signal */}
-            <h2 className="mb-4 text-xl font-medium">INTEREST SIGNAL</h2>
-            <ul className="space-y-3">
-              {sortedInterests.map((interest, idx) => (
-                <li key={interest.id} className="flex items-center">
-                  <span className="w-8 text-sm font-mono text-white/60">{String(idx + 1).padStart(2, "0")}</span>
-                  <span className="flex-1 text-lg">{interest.name}</span>
-                  <div className="ml-4 w-32">
-                    <div className="h-2 w-full rounded bg-white/10">
-                      <div
-                        className="h-2 rounded bg-violet-500"
-                        style={{ width: `${interest.strength}%` }}
-                      />
+          <section className="grid gap-4 md:grid-cols-[1.25fr_0.75fr]">
+            <div className="rounded-lg border border-white/10 bg-white/[0.035] p-5 backdrop-blur-md">
+              <h2 className="text-xs font-medium uppercase tracking-[0.26em] text-white/38">
+                Your signal
+              </h2>
+              <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                <div className="space-y-3">
+                  {sortedInterests.map(interest => (
+                    <div
+                      key={interest.id}
+                      className="grid grid-cols-[1fr_auto] items-center gap-4"
+                    >
+                      <span className="text-sm text-white/74">
+                        {interest.name}
+                      </span>
+                      <span className="text-sm tabular-nums text-white">
+                        {interest.strength}
+                      </span>
+                      <span className="col-span-2 h-1.5 rounded-full bg-white/10">
+                        <span
+                          className="block h-full rounded-full bg-violet-300"
+                          style={{ width: `${interest.strength}%` }}
+                        />
+                      </span>
                     </div>
-                  </div>
-                  <span className="ml-2 w-12 text-right text-sm text-white/70">{interest.strength}%</span>
-                </li>
-              ))}
-            </ul>
-
-          {/* Content DNA */}
-          <section>
-            <h2 className="mb-4 text-xl font-medium">CONTENT DNA</h2>
-            <ul className="space-y-3">
-              {prefs.contentPreferences?.map((cp) => (
-                <li key={cp.id} className="flex items-center">
-                  <span className="flex-1 text-lg">{cp.name}</span>
-                  <div className="ml-4 w-32">
-                    <div className="h-2 w-full rounded bg-white/10">
-                      <div
-                        className="h-2 rounded bg-violet-400"
-                        style={{ width: `${cp.strength}%` }}
-                      />
+                  ))}
+                </div>
+                <div className="space-y-3">
+                  {sortedContentPreferences.slice(0, 4).map(preference => (
+                    <div
+                      key={preference.id}
+                      className="grid grid-cols-[1fr_auto] items-center gap-4"
+                    >
+                      <span className="text-sm text-white/74">
+                        {preference.name}
+                      </span>
+                      <span className="text-sm tabular-nums text-white">
+                        {preference.strength}
+                      </span>
+                      <span className="col-span-2 h-1.5 rounded-full bg-white/10">
+                        <span
+                          className="block h-full rounded-full bg-teal-200"
+                          style={{ width: `${preference.strength}%` }}
+                        />
+                      </span>
                     </div>
-                  </div>
-                  <span className="ml-2 w-12 text-right text-sm text-white/70">{cp.strength}%</span>
-                </li>
-              ))}
-            </ul>
-          </section>
-
-          {/* Filtered Out */}
-          <section>
-            <h2 className="mb-4 text-xl font-medium">FILTERED OUT</h2>
-            {filterCount > 0 ? (
-              <ul className="list-disc list-inside space-y-1 text-sm text-white/70">
-                {prefs.filters?.map((f) => (
-                  <li key={f}>{f}</li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm text-white/50">Nothing filtered. Your signal is open to everything.</p>
-            )}
-          </section>
-
-          {/* Signal Summary */}
-          <section>
-            <h2 className="mb-4 text-xl font-medium">SIGNAL SUMMARY</h2>
-            <p className="text-sm text-white/70">{signalSummary}</p>
-          </section>
-
-          {/* Statistics */}
-          <section>
-            <h2 className="mb-4 text-xl font-medium">SIGNAL STATISTICS</h2>
-            <div className="grid grid-cols-2 gap-6 md:grid-cols-4 text-center">
-              <div>
-                <p className="text-2xl font-medium text-violet-400">{activeInterests.toString().padStart(2, "0")}</p>
-                <p className="text-xs uppercase text-white/60">Active Interests</p>
+                  ))}
+                </div>
               </div>
-              <div>
-                <p className="text-2xl font-medium text-violet-400">{avgStrength}%</p>
-                <p className="text-xs uppercase text-white/60">Avg. Signal Strength</p>
-              </div>
-              <div>
-                <p className="text-2xl font-medium text-violet-400">{contentCount.toString().padStart(2, "0")}</p>
-                <p className="text-xs uppercase text-white/60">Content Priorities</p>
-              </div>
-              <div>
-                <p className="text-2xl font-medium text-violet-400">{filterCount.toString().padStart(2, "0")}</p>
-                <p className="text-xs uppercase text-white/60">Filters</p>
+            </div>
+
+            <div className="rounded-lg border border-white/10 bg-black/25 p-5">
+              <h2 className="text-xs font-medium uppercase tracking-[0.26em] text-white/38">
+                Plan progress
+              </h2>
+              <p className="mt-5 text-3xl font-medium">
+                {completedCount} / {totalActions}
+              </p>
+              <p className="mt-1 text-sm text-white/45">
+                actions complete for day {currentDay.day} of 7
+              </p>
+              <div className="mt-5 h-2 rounded-full bg-white/10">
+                <div
+                  className="h-full rounded-full bg-white transition-all"
+                  style={{ width: `${progressPercent}%` }}
+                />
               </div>
             </div>
           </section>
 
-          {/* CTA */}
-          <section className="pt-6">
-            <h2 className="mb-4 text-xl font-medium">YOUR SIGNAL IS READY.</h2>
-            <p className="mb-4 text-sm text-white/70">
-              Your preferences are now ready to shape your personalized feed.
-            </p>
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <Link
-                href="/feed"
-                className="rounded bg-violet-500 px-5 py-2.5 text-center text-white transition hover:bg-violet-600"
+          <section className="rounded-lg border border-white/10 bg-black/35 p-5 shadow-2xl shadow-violet-950/30 backdrop-blur-md md:p-7">
+            <div className="flex flex-col gap-5 border-b border-white/10 pb-6 md:flex-row md:items-end md:justify-between">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-[0.3em] text-violet-200/70">
+                  Today&apos;s mission
+                </p>
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={currentDay.day}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <h2 className="mt-3 text-3xl font-medium md:text-5xl">
+                      Day {currentDay.day} — {currentDay.stage}
+                    </h2>
+                    <p className="mt-3 max-w-2xl text-sm leading-6 text-white/56">
+                      <span className="text-white/80">Your goal:</span>{" "}
+                      {currentDay.goal}
+                    </p>
+                  </motion.div>
+                </AnimatePresence>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  disabled={dayIndex === 0}
+                  onClick={() => setDayIndex(current => Math.max(0, current - 1))}
+                  className="rounded-full border border-white/15 px-4 py-2 text-sm text-white/70 transition hover:border-white/30 hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
+                >
+                  ← Previous
+                </button>
+                <span className="min-w-24 text-center text-xs font-medium uppercase tracking-[0.18em] text-white/38">
+                  Day {currentDay.day} of 7
+                </span>
+                <button
+                  type="button"
+                  disabled={dayIndex === plan.days.length - 1}
+                  onClick={() =>
+                    setDayIndex(current =>
+                      Math.min(plan.days.length - 1, current + 1)
+                    )
+                  }
+                  className="rounded-full border border-white/15 px-4 py-2 text-sm text-white/70 transition hover:border-white/30 hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
+                >
+                  Next →
+                </button>
+              </div>
+            </div>
+
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentDay.day}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -12 }}
+                transition={{ duration: 0.22 }}
+                className="mt-7 grid gap-7"
               >
-                Enter your feed →
-              </Link>
-              <Link
-                href="/build"
-                className="text-sm text-white/50 underline hover:text-white"
-              >
-                ← Edit signal
-              </Link>
+                {groupedActions(currentDay).map(([type, actions]) => (
+                  <section key={type}>
+                    <h3 className="mb-3 text-xs font-medium uppercase tracking-[0.28em] text-white/36">
+                      {ACTION_LABELS[type]}
+                    </h3>
+                    <div className="grid gap-2">
+                      {actions.map(action => {
+                        const complete = Boolean(progress.completed[action.id]);
+                        const detail = actionDetail(action);
+
+                        return (
+                          <label
+                            key={action.id}
+                            className={`group grid cursor-pointer grid-cols-[auto_1fr] gap-4 rounded-md border p-4 transition ${
+                              complete
+                                ? "border-teal-200/30 bg-teal-200/[0.06]"
+                                : "border-white/10 bg-white/[0.025] hover:border-white/22 hover:bg-white/[0.045]"
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={complete}
+                              onChange={() => toggleAction(action.id)}
+                              className="mt-1 h-4 w-4 accent-teal-200"
+                            />
+                            <span>
+                              <span
+                                className={`block text-sm font-medium ${
+                                  complete ? "text-white/48 line-through" : "text-white"
+                                }`}
+                              >
+                                {action.title}
+                              </span>
+                              <span className="mt-1 block text-sm leading-6 text-white/55">
+                                {action.description}
+                              </span>
+                              <span className="mt-2 block text-xs leading-5 text-white/35">
+                                {detail ? `${detail}. ` : ""}
+                                {action.why}
+                              </span>
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </section>
+                ))}
+              </motion.div>
+            </AnimatePresence>
+          </section>
+
+          <section>
+            <h2 className="text-xs font-medium uppercase tracking-[0.28em] text-white/38">
+              7-day plan
+            </h2>
+            <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-7">
+              {plan.days.map((day, index) => (
+                <button
+                  key={day.day}
+                  type="button"
+                  onClick={() => setDayIndex(index)}
+                  className={`rounded-md border p-4 text-left transition ${
+                    index === dayIndex
+                      ? "border-violet-200/60 bg-violet-300/[0.12]"
+                      : "border-white/10 bg-white/[0.025] hover:border-white/25"
+                  }`}
+                >
+                  <span className="block text-xs uppercase tracking-[0.2em] text-white/40">
+                    Day {day.day}
+                  </span>
+                  <span className="mt-2 block text-sm font-medium text-white">
+                    {day.stage}
+                  </span>
+                </button>
+              ))}
             </div>
           </section>
         </div>
-
-        {/* Right column – visual orbit */}
-        <aside className="mt-10 lg:mt-0 lg:w-[420px] lg:flex-shrink-0">
-          {vizData.length > 0 ? (
-            <div className="relative h-[420px] w-full">
-              <OrbitVisualization interests={vizData} />
-            </div>
-          ) : (
-            <p className="text-center text-sm text-white/40">No interests to visualize.</p>
-          )}
-        </aside>
-      </div>
-    </section>
+      </section>
+    </main>
   );
 }

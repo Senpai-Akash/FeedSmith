@@ -40,6 +40,7 @@ const GooeyNav = ({
   const textRef = useRef(null);
   const [activeIndex, setActiveIndex] = useState(initialActiveIndex);
 
+  // eslint-disable-next-line react-hooks/purity
   const noise = (n = 1) => n / 2 - Math.random() * n;
 
   const getXY = (distance, pointIndex, totalPoints) => {
@@ -54,6 +55,7 @@ const GooeyNav = ({
       end: getXY(d[1] + noise(7), particleCount - i, particleCount),
       time: t,
       scale: 1 + noise(0.2),
+      // eslint-disable-next-line react-hooks/purity
       color: colors[Math.floor(Math.random() * colors.length)],
       rotate: rotate > 0 ? (rotate + r / 20) * 10 : (rotate - r / 20) * 10,
     };

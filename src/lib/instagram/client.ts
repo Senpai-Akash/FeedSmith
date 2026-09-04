@@ -1,4 +1,4 @@
-import { InstagramProfile, InstagramAnalysis, InstagramConnection } from './types';
+import { InstagramProfile, InstagramAnalysis } from './types';
 
 /**
  * Mock Instagram client.
@@ -6,7 +6,7 @@ import { InstagramProfile, InstagramAnalysis, InstagramConnection } from './type
  * For now it returns deterministic mock data.
  */
 
-let mockProfile: InstagramProfile = {
+const mockProfile: InstagramProfile = {
   username: 'demo_user',
   displayName: 'Demo User',
   profileImage: 'https://example.com/demo_profile.jpg',
@@ -16,7 +16,7 @@ let mockProfile: InstagramProfile = {
   mode: 'MOCK',
 };
 
-let mockAnalysis: InstagramAnalysis = {
+const mockAnalysis: InstagramAnalysis = {
   profile: { ...mockProfile },
   signals: {
     AI: { category: 'AI', score: 34, sampleCount: 12 },

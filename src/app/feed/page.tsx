@@ -8,6 +8,7 @@ import { ScoreBadge } from "@/app/feed/ScoreBadge";
 import { WhyThisPanel } from "@/app/feed/WhyThisPanel";
 import { useEffect, useState } from "react";
 import { FeedPreferences } from "@/lib/feed/types";
+import { RecommendedItem } from "@/lib/feed/content";
 
 /**
  * Full featured feed page – shows a ranked list of recommended items
@@ -15,17 +16,21 @@ import { FeedPreferences } from "@/lib/feed/types";
  */
 export default function FeedPage() {
   const [preferences, setPreferences] = useState<FeedPreferences | null>(null);
-  const [items, setItems] = useState([] as any[]);
+  const [items, setItems] = useState<RecommendedItem[]>([]);
 
   // Load preferences once on client mount.
   useEffect(() => {
-    const prefs = loadPreferences();
-    setPreferences(prefs);
-    // If there are no interests, we keep items empty – UI will show empty state.
-    if (prefs.interests?.length) {
-      const rec = recommendFeed(prefs, MOCK_CONTENT);
-      setItems(rec);
-    }
+    const timeout = window.setTimeout(() => {
+      const prefs = loadPreferences();
+      setPreferences(prefs);
+      // If there are no interests, we keep items empty – UI will show empty state.
+      if (prefs.interests?.length) {
+        const rec = recommendFeed(prefs, MOCK_CONTENT);
+        setItems(rec);
+      }
+    }, 0);
+
+    return () => window.clearTimeout(timeout);
   }, []);
 
   const hasSignal = preferences && preferences.interests && preferences.interests.length > 0;

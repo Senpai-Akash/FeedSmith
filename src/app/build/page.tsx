@@ -72,12 +72,16 @@ export default function BuildPage() {
   const [hasLoadedPreferences, setHasLoadedPreferences] = useState(false);
 
   useEffect(() => {
-    const stored = loadPreferences();
+    const timeout = window.setTimeout(() => {
+      const stored = loadPreferences();
 
-    setSelected(stored.interests ?? []);
-    setContentPrefs(mergeContentPreferences(stored.contentPreferences));
-    setSelectedFilters(stored.filters ?? []);
-    setHasLoadedPreferences(true);
+      setSelected(stored.interests ?? []);
+      setContentPrefs(mergeContentPreferences(stored.contentPreferences));
+      setSelectedFilters(stored.filters ?? []);
+      setHasLoadedPreferences(true);
+    }, 0);
+
+    return () => window.clearTimeout(timeout);
   }, []);
 
   useEffect(() => {

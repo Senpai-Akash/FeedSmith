@@ -382,7 +382,7 @@ export default function MoltenMetal({
     );
 
     let animationFrame = 0;
-    let startTime = performance.now();
+    const startTime = performance.now();
 
     const animate = (time: number) => {
       if (document.hidden) {
