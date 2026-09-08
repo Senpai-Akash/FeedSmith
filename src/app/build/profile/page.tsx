@@ -204,233 +204,139 @@ export default function ProfilePage() {
   return (
     <main className="min-h-screen overflow-hidden bg-[#08050f] text-white">
       <section className="relative px-6 py-8 md:py-12">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_22%_10%,rgba(168,85,247,0.22),transparent_34%),radial-gradient(circle_at_78%_14%,rgba(45,212,191,0.12),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.04),transparent_42%)]" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_22%_10%,rgba(168,85,247,0.16),transparent_34%),radial-gradient(circle_at_78%_14%,rgba(45,212,191,0.08),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.02),transparent_42%)]" />
         <div className="relative mx-auto flex max-w-6xl flex-col gap-8">
-          <header className="flex flex-col gap-5 border-b border-white/10 pb-8 md:flex-row md:items-end md:justify-between">
-            <div>
-              <p className="text-xs font-medium uppercase tracking-[0.32em] text-white/40">
-                FeedSmith
-              </p>
-              <h1 className="mt-4 text-4xl font-medium leading-tight md:text-6xl">
-                Your Feed Training Plan
-              </h1>
-              <p className="mt-4 max-w-2xl text-base leading-7 text-white/55">
-                Based on the feed you told us you want. FeedSmith does not
-                control the recommendation system; it gives you a daily mission
-                so you can shape your own signal intentionally.
-              </p>
-            </div>
-            <Link
-              href="/build"
-              className="w-fit rounded-full border border-white/15 px-5 py-3 text-sm font-medium text-white/65 transition hover:border-white/35 hover:text-white"
-            >
-              Edit signal
-            </Link>
+          <header className="flex flex-col gap-3 pb-2">
+            <p className="text-xs font-medium uppercase tracking-[0.32em] text-white/40">FeedSmith</p>
+            <h1 className="mt-1 text-3xl font-medium leading-tight md:text-5xl">Your personalized feed training plan</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-white/55">Based on the interests and content preferences you selected.</p>
           </header>
 
-          <section className="grid gap-4 md:grid-cols-[1.25fr_0.75fr]">
-            <div className="rounded-lg border border-white/10 bg-white/[0.035] p-5 backdrop-blur-md">
-              <h2 className="text-xs font-medium uppercase tracking-[0.26em] text-white/38">
-                Your signal
-              </h2>
-              <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                <div className="space-y-3">
-                  {sortedInterests.map(interest => (
-                    <div
-                      key={interest.id}
-                      className="grid grid-cols-[1fr_auto] items-center gap-4"
-                    >
-                      <span className="text-sm text-white/74">
-                        {interest.name}
-                      </span>
-                      <span className="text-sm tabular-nums text-white">
-                        {interest.strength}
-                      </span>
-                      <span className="col-span-2 h-1.5 rounded-full bg-white/10">
-                        <span
-                          className="block h-full rounded-full bg-violet-300"
-                          style={{ width: `${interest.strength}%` }}
-                        />
-                      </span>
-                    </div>
-                  ))}
+          {/* PRIMARY: Today's mission (dominant) */}
+          <section className="grid gap-6 lg:grid-cols-[1fr_360px]">
+            <div className="rounded-lg border border-white/10 bg-black/35 p-6 shadow-lg backdrop-blur-md">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-[0.3em] text-violet-200/70">Today&apos;s mission</p>
+                  <AnimatePresence mode="wait">
+                    <motion.div key={currentDay.day} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.18 }}>
+                      <h2 className="mt-3 text-2xl font-semibold md:text-4xl">Day {currentDay.day} · {currentDay.stage}</h2>
+                      <p className="mt-2 max-w-3xl text-sm leading-6 text-white/56"><span className="text-white/80">Your goal:</span> {currentDay.goal}</p>
+                    </motion.div>
+                  </AnimatePresence>
                 </div>
-                <div className="space-y-3">
-                  {sortedContentPreferences.slice(0, 4).map(preference => (
-                    <div
-                      key={preference.id}
-                      className="grid grid-cols-[1fr_auto] items-center gap-4"
-                    >
-                      <span className="text-sm text-white/74">
-                        {preference.name}
-                      </span>
-                      <span className="text-sm tabular-nums text-white">
-                        {preference.strength}
-                      </span>
-                      <span className="col-span-2 h-1.5 rounded-full bg-white/10">
-                        <span
-                          className="block h-full rounded-full bg-teal-200"
-                          style={{ width: `${preference.strength}%` }}
-                        />
-                      </span>
-                    </div>
-                  ))}
+
+                <div className="flex items-center gap-3">
+                  <button type="button" aria-label="previous day" disabled={dayIndex === 0} onClick={() => setDayIndex(i => Math.max(0, i - 1))} className="rounded-full border border-white/15 px-3 py-2 text-sm text-white/70 hover:border-white/30 disabled:opacity-30">←</button>
+                  <div className="text-center">
+                    <div className="text-xs font-medium uppercase tracking-[0.12em] text-white/38">Day {currentDay.day} of 7</div>
+                    <div className="mt-1 text-sm text-white/65">{completedCount} / {totalActions} actions</div>
+                  </div>
+                  <button type="button" aria-label="next day" disabled={dayIndex === plan.days.length - 1} onClick={() => setDayIndex(i => Math.min(plan.days.length - 1, i + 1))} className="rounded-full border border-white/15 px-3 py-2 text-sm text-white/70 hover:border-white/30 disabled:opacity-30">→</button>
                 </div>
               </div>
-            </div>
 
-            <div className="rounded-lg border border-white/10 bg-black/25 p-5">
-              <h2 className="text-xs font-medium uppercase tracking-[0.26em] text-white/38">
-                Plan progress
-              </h2>
-              <p className="mt-5 text-3xl font-medium">
-                {completedCount} / {totalActions}
-              </p>
-              <p className="mt-1 text-sm text-white/45">
-                actions complete for day {currentDay.day} of 7
-              </p>
-              <div className="mt-5 h-2 rounded-full bg-white/10">
-                <div
-                  className="h-full rounded-full bg-white transition-all"
-                  style={{ width: `${progressPercent}%` }}
-                />
-              </div>
-            </div>
-          </section>
-
-          <section className="rounded-lg border border-white/10 bg-black/35 p-5 shadow-2xl shadow-violet-950/30 backdrop-blur-md md:p-7">
-            <div className="flex flex-col gap-5 border-b border-white/10 pb-6 md:flex-row md:items-end md:justify-between">
-              <div>
-                <p className="text-xs font-medium uppercase tracking-[0.3em] text-violet-200/70">
-                  Today&apos;s mission
-                </p>
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={currentDay.day}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <h2 className="mt-3 text-3xl font-medium md:text-5xl">
-                      Day {currentDay.day} — {currentDay.stage}
-                    </h2>
-                    <p className="mt-3 max-w-2xl text-sm leading-6 text-white/56">
-                      <span className="text-white/80">Your goal:</span>{" "}
-                      {currentDay.goal}
-                    </p>
-                  </motion.div>
-                </AnimatePresence>
-              </div>
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  disabled={dayIndex === 0}
-                  onClick={() => setDayIndex(current => Math.max(0, current - 1))}
-                  className="rounded-full border border-white/15 px-4 py-2 text-sm text-white/70 transition hover:border-white/30 hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
-                >
-                  ← Previous
-                </button>
-                <span className="min-w-24 text-center text-xs font-medium uppercase tracking-[0.18em] text-white/38">
-                  Day {currentDay.day} of 7
-                </span>
-                <button
-                  type="button"
-                  disabled={dayIndex === plan.days.length - 1}
-                  onClick={() =>
-                    setDayIndex(current =>
-                      Math.min(plan.days.length - 1, current + 1)
-                    )
-                  }
-                  className="rounded-full border border-white/15 px-4 py-2 text-sm text-white/70 transition hover:border-white/30 hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
-                >
-                  Next →
-                </button>
-              </div>
-            </div>
-
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={currentDay.day}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -12 }}
-                transition={{ duration: 0.22 }}
-                className="mt-7 grid gap-7"
-              >
+              <div className="mt-6 grid gap-4">
                 {groupedActions(currentDay).map(([type, actions]) => (
-                  <section key={type}>
-                    <h3 className="mb-3 text-xs font-medium uppercase tracking-[0.28em] text-white/36">
-                      {ACTION_LABELS[type]}
-                    </h3>
-                    <div className="grid gap-2">
+                  <section key={type} aria-labelledby={`section-${type.toLowerCase()}`}>
+                    <h3 id={`section-${type.toLowerCase()}`} className="mb-3 text-xs font-medium uppercase tracking-[0.28em] text-white/36">{ACTION_LABELS[type]}</h3>
+                    <div className="grid gap-3">
                       {actions.map(action => {
                         const complete = Boolean(progress.completed[action.id]);
                         const detail = actionDetail(action);
 
                         return (
-                          <label
-                            key={action.id}
-                            className={`group grid cursor-pointer grid-cols-[auto_1fr] gap-4 rounded-md border p-4 transition ${
-                              complete
-                                ? "border-teal-200/30 bg-teal-200/[0.06]"
-                                : "border-white/10 bg-white/[0.025] hover:border-white/22 hover:bg-white/[0.045]"
-                            }`}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={complete}
-                              onChange={() => toggleAction(action.id)}
-                              className="mt-1 h-4 w-4 accent-teal-200"
-                            />
-                            <span>
-                              <span
-                                className={`block text-sm font-medium ${
-                                  complete ? "text-white/48 line-through" : "text-white"
-                                }`}
-                              >
-                                {action.title}
-                              </span>
-                              <span className="mt-1 block text-sm leading-6 text-white/55">
-                                {action.description}
-                              </span>
-                              <span className="mt-2 block text-xs leading-5 text-white/35">
-                                {detail ? `${detail}. ` : ""}
-                                {action.why}
-                              </span>
-                            </span>
+                          <label key={action.id} className={`group flex items-start gap-4 rounded-md border p-3 transition ${complete ? 'border-teal-200/30 bg-teal-200/[0.06]' : 'border-white/8 bg-white/[0.02] hover:border-white/22 hover:bg-white/[0.04]'}`}>
+                            <input aria-label={action.title} type="checkbox" checked={complete} onChange={() => toggleAction(action.id)} className="mt-1 h-5 w-5 flex-shrink-0 accent-teal-200" />
+                            <div className="min-w-0">
+                              <div className={`flex items-baseline justify-between gap-3`}> 
+                                <span className={`block text-sm font-medium ${complete ? 'text-white/50 line-through' : 'text-white'}`}>{action.title}</span>
+                                {action.type === 'WATCH' && 'count' in action && (
+                                  <span className="text-xs tabular-nums text-white/45">{action.count}</span>
+                                )}
+                              </div>
+                              <div className="mt-1 text-sm text-white/55">{action.description}</div>
+                              {detail || action.why ? (
+                                <div className="mt-2 text-xs text-white/35">{detail ? `${detail}. ` : ''}{action.why}</div>
+                              ) : null}
+                            </div>
                           </label>
                         );
                       })}
                     </div>
                   </section>
                 ))}
-              </motion.div>
-            </AnimatePresence>
+              </div>
+            </div>
+
+            {/* Right column: compact plan nav + quick progress */}
+            <aside className="space-y-4">
+              <div className="rounded-lg border border-white/10 bg-white/[0.02] p-4">
+                <h4 className="text-xs font-medium uppercase tracking-[0.22em] text-white/38">Progress</h4>
+                <div className="mt-3">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-medium">Day {currentDay.day} progress</div>
+                    <div className="text-sm tabular-nums text-white/70">{progressPercent}%</div>
+                  </div>
+                  <div className="mt-2 h-2 w-full rounded-full bg-white/8">
+                    <div className="h-full rounded-full bg-violet-400 transition-all" style={{ width: `${progressPercent}%` }} />
+                  </div>
+                </div>
+                <div className="mt-3 text-xs text-white/45">{completedCount} / {totalActions} actions complete</div>
+              </div>
+
+              <div className="rounded-lg border border-white/10 bg-white/[0.02] p-3">
+                <h4 className="text-xs font-medium uppercase tracking-[0.22em] text-white/38">7‑day plan</h4>
+                <div className="mt-3 grid grid-cols-7 gap-2">
+                  {plan.days.map((d, i) => (
+                    <button key={d.day} onClick={() => setDayIndex(i)} aria-current={i === dayIndex} className={`rounded-md py-2 text-center text-xs font-medium transition ${i === dayIndex ? 'bg-violet-300/20 border border-violet-300/40 text-white' : 'bg-white/[0.02] border border-white/6 text-white/60 hover:bg-white/[0.035]'}`}>
+                      <div className="tabular-nums">{String(d.day).padStart(2, '0')}</div>
+                      <div className="mt-1 text-[10px] text-white/50 leading-4">{d.stage}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-white/10 bg-white/[0.02] p-4">
+                <h4 className="text-xs font-medium uppercase tracking-[0.22em] text-white/38">Your signal</h4>
+                <div className="mt-3 text-sm">
+                  {sortedInterests.slice(0,4).map(i => (
+                    <div key={i.id} className="flex items-center justify-between py-1">
+                      <div className="text-sm text-white/75">{i.name}</div>
+                      <div className="tabular-nums text-white">{i.strength}</div>
+                    </div>
+                  ))}
+                </div>
+                {sortedContentPreferences.length > 0 && (
+                  <div className="mt-3 text-xs text-white/45">
+                    {sortedContentPreferences.slice(0,3).map(c => (
+                      <div key={c.id} className="flex items-center justify-between py-0.5"><div>{c.name}</div><div className="tabular-nums">{c.strength}</div></div>
+                    ))}
+                  </div>
+                )}
+                {prefs.filters && prefs.filters.length > 0 && (
+                  <div className="mt-3 text-xs text-white/45">
+                    <div className="font-medium text-white/70 mb-1">Suppress</div>
+                    <div className="flex flex-wrap gap-2">
+                      {prefs.filters.map(f => (
+                        <div key={f} className="rounded-full bg-white/[0.03] px-2 py-1 text-xs">{f}</div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </aside>
           </section>
 
+          {/* 7-day detail grid (expanded) */}
           <section>
-            <h2 className="text-xs font-medium uppercase tracking-[0.28em] text-white/38">
-              7-day plan
-            </h2>
-            <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-7">
+            <h2 className="text-xs font-medium uppercase tracking-[0.28em] text-white/38">Plan overview</h2>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-7">
               {plan.days.map((day, index) => (
-                <button
-                  key={day.day}
-                  type="button"
-                  onClick={() => setDayIndex(index)}
-                  className={`rounded-md border p-4 text-left transition ${
-                    index === dayIndex
-                      ? "border-violet-200/60 bg-violet-300/[0.12]"
-                      : "border-white/10 bg-white/[0.025] hover:border-white/25"
-                  }`}
-                >
-                  <span className="block text-xs uppercase tracking-[0.2em] text-white/40">
-                    Day {day.day}
-                  </span>
-                  <span className="mt-2 block text-sm font-medium text-white">
-                    {day.stage}
-                  </span>
+                <button key={day.day} type="button" onClick={() => setDayIndex(index)} className={`rounded-md border p-4 text-left transition ${index === dayIndex ? 'border-violet-200/60 bg-violet-300/[0.08]' : 'border-white/10 bg-white/[0.012] hover:border-white/25'}`}>
+                  <span className="block text-xs uppercase tracking-[0.2em] text-white/40">{String(day.day).padStart(2,'0')}</span>
+                  <span className="mt-2 block text-sm font-medium text-white">{day.stage}</span>
+                  <span className="mt-1 block text-xs text-white/50">{day.goal}</span>
                 </button>
               ))}
             </div>
