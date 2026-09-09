@@ -150,6 +150,51 @@ export interface FeedTrainingPlan {
 }
 
 /**
+ * Discovery Library Types
+ */
+
+/**
+ * Represents a search query for a topic at a specific specificity level.
+ */
+export interface DiscoverySearchQuery {
+  query: string;
+  /** "broad", "specific", or "discovery" */
+  specificity: "broad" | "specific" | "discovery";
+  /** Optional: subtopic this query is focused on */
+  subtopic?: string;
+  /** Preferred content types for this search */
+  contentTypes?: string[];
+}
+
+/**
+ * Represents a subtopic within a larger interest context.
+ * Example: Python, React, Data Structures under Programming.
+ */
+export interface DiscoverySubtopic {
+  id: string;
+  name: string;
+  description?: string;
+  /** Related topic IDs */
+  related?: string[];
+}
+
+/**
+ * Discovery topic with structured search queries and related content.
+ */
+export interface DiscoveryTopic {
+  /** Topic ID, typically matches interest ID */
+  id: string;
+  name: string;
+  description?: string;
+  /** Related subtopics */
+  subtopics: DiscoverySubtopic[];
+  /** Search queries organized by specificity */
+  searches: DiscoverySearchQuery[];
+  /** Content types typical for this topic */
+  contentTypes: string[];
+}
+
+/**
  * Priority classification for interests and content preferences.
  * Used to determine how prominently an item should be featured.
  */

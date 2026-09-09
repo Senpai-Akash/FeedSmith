@@ -12,6 +12,10 @@ import {
   TrainingAction,
   TrainingActionType,
 } from "@/lib/feed/types";
+import {
+  getRelevantSubtopics,
+  getDiscoveryTopic,
+} from "@/lib/feed/discoverySelection";
 
 const PROGRESS_STORAGE_KEY = "feedTrainingProgress";
 
@@ -95,6 +99,24 @@ function actionDetail(action: TrainingAction): string | undefined {
   }
 
   return undefined;
+}
+
+/**
+ * Get subtopics for an interest using the discovery library.
+ */
+function getSubtopicsList(interestId: string, maxCount: number = 3): Array<{ id: string; name: string }> {
+  try {
+    const topic = getDiscoveryTopic(interestId);
+    if (!topic || topic.subtopics.length === 0) {
+      return [];
+    }
+    return topic.subtopics.slice(0, maxCount).map(st => ({
+      id: st.id,
+      name: st.name,
+    }));
+  } catch {
+    return [];
+  }
 }
 
 export default function ProfilePage() {
@@ -307,6 +329,35 @@ export default function ProfilePage() {
                     </div>
                   ))}
                 </div>
+
+                {/* Key Areas from Discovery Library */}
+                {sortedInterests.length > 0 && (
+                  <div className="mt-3 border-t border-white/8 pt-3">
+                    <h5 className="text-xs font-medium uppercase tracking-[0.15em] text-white/25 mb-2">Key areas to explore</h5>
+                    <div className="space-y-2">
+                      {sortedInterests.slice(0, 2).map(interest => {
+                        const subtopics = getSubtopicsList(interest.id, 2);
+                        if (subtopics.length === 0) return null;
+                        return (
+                          <div key={interest.id} className="text-xs">
+                            <div className="text-white/50 mb-1">{interest.name}</div>
+                            <div className="flex flex-wrap gap-1">
+                              {subtopics.map(st => (
+                                <div
+                                  key={st.id}
+                                  className="rounded-full bg-white/[0.05] px-2 py-0.5 text-white/40 text-[10px]"
+                                >
+                                  {st.name}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 {sortedContentPreferences.length > 0 && (
                   <div className="mt-3 text-xs text-white/45">
                     {sortedContentPreferences.slice(0,3).map(c => (

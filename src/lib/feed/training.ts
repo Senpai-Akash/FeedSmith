@@ -18,6 +18,13 @@ import {
   classifyAllContentPreferences,
   classifyPriority,
 } from "./analysis";
+import {
+  selectSearchQuery,
+  selectCreators,
+  generateSearchExplanation,
+  generateCreatorExplanation,
+  getRelevantSubtopics,
+} from "./discoverySelection";
 
 const DEFAULT_PLATFORM: TrainingPlatform = "instagram";
 
@@ -182,36 +189,45 @@ function allocateCounts(
 /**
  * Select a search query for an interest on a given day.
  *
- * Search progression:
- * Days 1-2: Broad searches (general interest term)
- * Days 3-4: Specific searches (focused subtopic)
- * Days 5-6: Discovery searches (advanced or adjacent topics)
- * Day 7: Maintenance search (recurring general)
+ * Uses the Discovery Library to provide personalized search suggestions
+ * based on user's content preferences and the training day stage.
+ *
+ * Falls back to generic suggestions if discovery data unavailable.
  */
-function searchQueryFor(interest: FeedPreference, dayIndex: number): string {
-  const suggestions = INTEREST_SEARCH_SUGGESTIONS[interest.id] ?? [
-    `${interest.name} tutorials`,
-    `${interest.name} explained`,
-    `${interest.name} creators`,
-  ];
+function searchQueryFor(
+  interest: FeedPreference,
+  dayIndex: number,
+  contentPreferences: ContentPreference[]
+): string {
+  // Try discovery-based selection first
+  try {
+    return selectSearchQuery(interest, dayIndex, contentPreferences);
+  } catch {
+    // Fallback to legacy suggestions
+    const suggestions = INTEREST_SEARCH_SUGGESTIONS[interest.id] ?? [
+      `${interest.name} tutorials`,
+      `${interest.name} explained`,
+      `${interest.name} creators`,
+    ];
 
-  // Broad stage (days 0-1)
-  if (dayIndex < 2) {
+    // Broad stage (days 0-1)
+    if (dayIndex < 2) {
+      return suggestions[0] ?? `${interest.name}`;
+    }
+
+    // Specific stage (days 2-3)
+    if (dayIndex < 4) {
+      return suggestions[Math.min(1, suggestions.length - 1)] ?? suggestions[0];
+    }
+
+    // Discovery stage (days 4-5)
+    if (dayIndex < 6) {
+      return suggestions[Math.min(2, suggestions.length - 1)] ?? suggestions[0];
+    }
+
+    // Maintenance (day 6)
     return suggestions[0] ?? `${interest.name}`;
   }
-
-  // Specific stage (days 2-3)
-  if (dayIndex < 4) {
-    return suggestions[Math.min(1, suggestions.length - 1)] ?? suggestions[0];
-  }
-
-  // Discovery stage (days 4-5)
-  if (dayIndex < 6) {
-    return suggestions[Math.min(2, suggestions.length - 1)] ?? suggestions[0];
-  }
-
-  // Maintenance (day 6)
-  return suggestions[0] ?? `${interest.name}`;
 }
 
 /**
@@ -271,10 +287,12 @@ function buildWatchActions(
 
 /**
  * Build SEARCH actions for a day.
- * Uses progressive search strategy (broad → specific → discovery).
+ * Uses the Discovery Library to provide personalized search suggestions
+ * and explanations based on user interests and content preferences.
  */
 function buildSearchActions(
   interests: FeedPreference[],
+  contentPreferences: ContentPreference[],
   dayIndex: number
 ): TrainingAction[] {
   // Vary search count by day
@@ -285,8 +303,10 @@ function buildSearchActions(
 
   searchCount = Math.min(searchCount, interests.length);
 
-  return interests.slice(0, searchCount).map(interest => {
-    const query = searchQueryFor(interest, dayIndex);
+  return interests.slice(0, searchCount).map((interest, index) => {
+    const query = searchQueryFor(interest, dayIndex, contentPreferences);
+    const isTopInterest = index === 0;
+    const explanation = generateSearchExplanation(interest, contentPreferences, isTopInterest);
 
     return {
       id: `day-${dayIndex + 1}-search-${actionSlug(query)}`,
@@ -297,7 +317,7 @@ function buildSearchActions(
       query,
       platform: DEFAULT_PLATFORM,
       description: `Search "${query}" and choose results that genuinely match what you want more of.`,
-      why: `Active searches help the recommendation system understand your interests more clearly. Specific searches compound upon each other throughout the week.`,
+      why: explanation,
     };
   });
 }
@@ -305,10 +325,15 @@ function buildSearchActions(
 /**
  * Build FOLLOW/SUBSCRIBE actions for a day.
  *
- * Creator strategy:
+ * Uses the Discovery Library to select relevant creators based on:
+ * - User's strongest interests
+ * - Content match quality
+ * - Day-specific recommendations
+ *
+ * Day strategy:
  * Day 1 (ESTABLISH): Discover 1-2 creators from strongest topics
- * Days 2-3 (REINFORCE, STRENGTHEN): Follow top creators
- * Day 4 (EXPAND): Explore adjacent topics, 2-3 creators
+ * Days 2-3: Follow the strongest matches
+ * Day 4 (EXPAND): Explore 2-3 creators
  * Day 5 (DEEPEN): Focus on strongest topic, 1-2 creators
  * Day 6 (REFINE): Light refinement, 1 creator
  * Day 7 (MAINTAIN): Maintenance, no new follows
@@ -320,61 +345,54 @@ function buildCreatorActions(
   // Skip days where we don't recommend creators
   if (![0, 1, 2, 3, 4, 5].includes(dayIndex)) return [];
 
-  // Determine how many interests to target and which ones
-  let interestSlice: FeedPreference[];
-  let creatorsPerInterest: number;
+  // Determine which interests to use and how many creator recommendations
+  let targetInterests: FeedPreference[];
+  let maxCreators: number;
 
   if (dayIndex === 0) {
-    // Day 1: 1-2 strongest interests, 1 creator each
-    interestSlice = interests.slice(0, Math.min(2, interests.length));
-    creatorsPerInterest = 1;
+    // Day 1: Top 2 interests, 1-2 creators total
+    targetInterests = interests.slice(0, Math.min(2, interests.length));
+    maxCreators = 2;
   } else if (dayIndex === 1 || dayIndex === 2) {
-    // Days 2-3: Top interests, 1 creator each
-    interestSlice = interests.slice(0, Math.min(2, interests.length));
-    creatorsPerInterest = 1;
+    // Days 2-3: Top 2 interests, 1-2 creators total
+    targetInterests = interests.slice(0, Math.min(2, interests.length));
+    maxCreators = 2;
   } else if (dayIndex === 3) {
-    // Day 4: Expand - top 3 interests, 1 creator each
-    interestSlice = interests.slice(0, Math.min(3, interests.length));
-    creatorsPerInterest = 1;
+    // Day 4: Top 3 interests, 2-3 creators total
+    targetInterests = interests.slice(0, Math.min(3, interests.length));
+    maxCreators = 3;
   } else if (dayIndex === 4) {
-    // Day 5: Deepen - top 1 interest, 1-2 creators
-    interestSlice = interests.slice(0, 1);
-    creatorsPerInterest = 1;
+    // Day 5: Top 2 interests, 2 creators total
+    targetInterests = interests.slice(0, Math.min(2, interests.length));
+    maxCreators = 2;
   } else {
-    // Day 6: Refine - top 1 interest, 1 creator
-    interestSlice = interests.slice(0, 1);
-    creatorsPerInterest = 1;
+    // Day 6: Top 1 interest, 1 creator
+    targetInterests = interests.slice(0, 1);
+    maxCreators = 1;
   }
 
-  return interestSlice.flatMap((interest, interestIndex) => {
-    const creators = creatorsFor(interest);
-    if (creators.length === 0) return [];
+  if (targetInterests.length === 0) return [];
 
-    const actions: TrainingAction[] = [];
+  // Use discovery library to select best creators
+  const selectedCreators = selectCreators(targetInterests, maxCreators);
 
-    for (let i = 0; i < creatorsPerInterest; i++) {
-      // Deterministically select creator based on day and interest index
-      const creatorIndex =
-        (dayIndex * 10 + interestIndex * 3 + i) % creators.length;
-      const creator = creators[creatorIndex];
+  if (selectedCreators.length === 0) return [];
 
-      if (!creator) continue;
+  // Convert to training actions
+  return selectedCreators.map(creator => {
+    const type = creatorActionType(creator.platform);
+    const explanation = generateCreatorExplanation(creator, targetInterests);
 
-      const type = creatorActionType(creator.platform);
-
-      actions.push({
-        id: `day-${dayIndex + 1}-${type.toLowerCase()}-${creator.id}-${i}`,
-        type,
-        title: `${type === "SUBSCRIBE" ? "Subscribe to" : "Follow"} ${creator.name}`,
-        topic: interest.id,
-        topicName: interest.name,
-        creator,
-        description: `${type === "SUBSCRIBE" ? "Subscribe to" : "Follow"} ${creator.name} if you genuinely want more ${interest.name.toLowerCase()} content.`,
-        why: creator.description,
-      } as TrainingAction);
-    }
-
-    return actions;
+    return {
+      id: `day-${dayIndex + 1}-${type.toLowerCase()}-${creator.id}`,
+      type,
+      title: `${type === "SUBSCRIBE" ? "Subscribe to" : "Follow"} ${creator.name}`,
+      topic: targetInterests[0]?.id,
+      topicName: targetInterests[0]?.name,
+      creator,
+      description: `${type === "SUBSCRIBE" ? "Subscribe to" : "Follow"} ${creator.name} if you genuinely want more content aligned with your interests.`,
+      why: explanation,
+    } as TrainingAction;
   });
 }
 
@@ -519,7 +537,7 @@ export function generateFeedTrainingPlan(
     ...stage,
     actions: [
       ...buildWatchActions(interests, contentPreferences, dayIndex),
-      ...buildSearchActions(interests, dayIndex),
+      ...buildSearchActions(interests, contentPreferences, dayIndex),
       ...buildCreatorActions(interests, dayIndex),
       ...buildEngageActions(interests, contentPreferences, dayIndex),
       ...buildAvoidActions(blueprint, dayIndex),
