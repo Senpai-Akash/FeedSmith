@@ -12,9 +12,18 @@ import {
   INTEREST_CREATOR_CATALOG,
   INTEREST_SEARCH_SUGGESTIONS,
 } from "./interestData";
+import {
+  getTrainingIntensity,
+  classifyAllInterests,
+  classifyAllContentPreferences,
+  classifyPriority,
+} from "./analysis";
 
 const DEFAULT_PLATFORM: TrainingPlatform = "instagram";
-const DAILY_WATCH_TARGETS = [13, 12, 12, 11, 12, 10, 9];
+
+/**
+ * Stage details for each day of the training plan.
+ */
 const STAGE_DETAILS: Pick<FeedTrainingDay, "day" | "stage" | "goal">[] = [
   {
     day: 1,
@@ -29,7 +38,7 @@ const STAGE_DETAILS: Pick<FeedTrainingDay, "day" | "stage" | "goal">[] = [
   {
     day: 3,
     stage: "STRENGTHEN",
-    goal: "Add more specific searches and finish useful content when it earns your attention.",
+    goal: "Add more specific searches and watch useful content fully when it earns your attention.",
   },
   {
     day: 4,
@@ -53,6 +62,9 @@ const STAGE_DETAILS: Pick<FeedTrainingDay, "day" | "stage" | "goal">[] = [
   },
 ];
 
+/**
+ * Maps content preference IDs to human-readable labels for descriptions.
+ */
 const CONTENT_LANGUAGE: Record<string, string> = {
   educational: "educational",
   entertainment: "entertaining",
@@ -61,6 +73,9 @@ const CONTENT_LANGUAGE: Record<string, string> = {
   discussions: "discussion-led",
 };
 
+/**
+ * Convert a string to a URL-safe slug for action IDs.
+ */
 function actionSlug(value: string): string {
   return value
     .toLowerCase()
@@ -68,32 +83,66 @@ function actionSlug(value: string): string {
     .replace(/(^-|-$)/g, "");
 }
 
+/**
+ * Get all interests from a blueprint, sorted by strength.
+ */
 function getAllInterests(blueprint: SignalBlueprint): FeedPreference[] {
   return [...blueprint.primaryInterests, ...blueprint.secondaryInterests]
     .filter(interest => interest.strength > 0)
     .sort((a, b) => b.strength - a.strength || a.name.localeCompare(b.name));
 }
 
+/**
+ * Get all content preferences from a blueprint, sorted by strength.
+ */
 function getContentPreferences(blueprint: SignalBlueprint): ContentPreference[] {
   return [...blueprint.contentPreferences]
     .filter(preference => preference.strength > 0)
     .sort((a, b) => b.strength - a.strength || a.name.localeCompare(b.name));
 }
 
+/**
+ * Get the human-readable label for a content preference.
+ */
 function contentLabel(preference: ContentPreference | undefined): string {
   if (!preference) return "relevant";
   return CONTENT_LANGUAGE[preference.id] ?? preference.name.toLowerCase();
 }
 
+/**
+ * Calculate base watch targets for each day based on training intensity.
+ * Takes into account the number of interests to scale appropriately.
+ */
+function calculateDailyWatchTargets(interestCount: number): number[] {
+  // Base targets adjusted for different numbers of interests
+  if (interestCount === 0) return [0, 0, 0, 0, 0, 0, 0];
+  if (interestCount === 1) return [5, 4, 5, 4, 5, 3, 2];
+  if (interestCount === 2) return [8, 7, 8, 7, 8, 6, 4];
+  if (interestCount <= 4) return [11, 10, 12, 11, 12, 9, 6];
+  if (interestCount <= 6) return [13, 12, 14, 13, 14, 10, 7];
+  return [15, 14, 16, 15, 16, 12, 8]; // 7+ interests
+}
+
+/**
+ * Allocate watch counts to interests based on their strength.
+ * This ensures stronger interests get more content.
+ *
+ * Algorithm:
+ * 1. Calculate each interest's proportional share
+ * 2. Distribute remainders to highest-strength interests
+ * 3. Ensure minimum of 1 per interest
+ */
 function allocateCounts(
   interests: FeedPreference[],
   total: number
 ): Record<string, number> {
+  if (interests.length === 0 || total === 0) return {};
+
   const strengthTotal = interests.reduce(
     (sum, interest) => sum + interest.strength,
     0
   );
-  if (!strengthTotal) return {};
+  if (strengthTotal === 0) return {};
 
   const allocations = interests.map(interest => {
     const exact = (interest.strength / strengthTotal) * total;
@@ -113,11 +162,13 @@ function allocateCounts(
       a.id.localeCompare(b.id)
   );
 
+  // Distribute remaining budget to highest-priority interests
   while (assigned < total) {
     ordered[(assigned - allocations.length) % ordered.length].base += 1;
     assigned += 1;
   }
 
+  // Remove excess if somehow we overallocated
   while (assigned > total && ordered.some(item => item.base > 1)) {
     const reducible = [...ordered].reverse().find(item => item.base > 1);
     if (!reducible) break;
@@ -128,15 +179,44 @@ function allocateCounts(
   return Object.fromEntries(allocations.map(item => [item.id, item.base]));
 }
 
+/**
+ * Select a search query for an interest on a given day.
+ *
+ * Search progression:
+ * Days 1-2: Broad searches (general interest term)
+ * Days 3-4: Specific searches (focused subtopic)
+ * Days 5-6: Discovery searches (advanced or adjacent topics)
+ * Day 7: Maintenance search (recurring general)
+ */
 function searchQueryFor(interest: FeedPreference, dayIndex: number): string {
   const suggestions = INTEREST_SEARCH_SUGGESTIONS[interest.id] ?? [
     `${interest.name} tutorials`,
     `${interest.name} explained`,
     `${interest.name} creators`,
   ];
-  return suggestions[dayIndex % suggestions.length];
+
+  // Broad stage (days 0-1)
+  if (dayIndex < 2) {
+    return suggestions[0] ?? `${interest.name}`;
+  }
+
+  // Specific stage (days 2-3)
+  if (dayIndex < 4) {
+    return suggestions[Math.min(1, suggestions.length - 1)] ?? suggestions[0];
+  }
+
+  // Discovery stage (days 4-5)
+  if (dayIndex < 6) {
+    return suggestions[Math.min(2, suggestions.length - 1)] ?? suggestions[0];
+  }
+
+  // Maintenance (day 6)
+  return suggestions[0] ?? `${interest.name}`;
 }
 
+/**
+ * Get creators relevant to an interest.
+ */
 function creatorsFor(interest: FeedPreference): CreatorRecommendation[] {
   return INTEREST_CREATOR_CATALOG.filter(creator =>
     (creator.topics as readonly string[]).includes(interest.id)
@@ -147,16 +227,24 @@ function creatorsFor(interest: FeedPreference): CreatorRecommendation[] {
   }));
 }
 
+/**
+ * Determine the action type for creators based on platform.
+ */
 function creatorActionType(platform: TrainingPlatform): "FOLLOW" | "SUBSCRIBE" {
   return platform === "youtube" ? "SUBSCRIBE" : "FOLLOW";
 }
 
+/**
+ * Build WATCH actions for a day.
+ * Allocates watch counts based on interest strength.
+ */
 function buildWatchActions(
   interests: FeedPreference[],
   contentPreferences: ContentPreference[],
   dayIndex: number
 ): TrainingAction[] {
-  const counts = allocateCounts(interests, DAILY_WATCH_TARGETS[dayIndex]);
+  const dailyTargets = calculateDailyWatchTargets(interests.length);
+  const counts = allocateCounts(interests, dailyTargets[dayIndex]);
 
   return interests.map((interest, index) => {
     const preferenceCount = Math.max(contentPreferences.length, 1);
@@ -167,7 +255,7 @@ function buildWatchActions(
 
     return {
       id: `day-${dayIndex + 1}-watch-${interest.id}`,
-      type: "WATCH",
+      type: "WATCH" as const,
       title: `Watch ${count} ${interest.name} ${count === 1 ? "video" : "videos"}`,
       topic: interest.id,
       topicName: interest.name,
@@ -176,56 +264,106 @@ function buildWatchActions(
       contentPreferenceName,
       platform: DEFAULT_PLATFORM,
       description: `Watch ${count} ${style} ${interest.name.toLowerCase()} ${count === 1 ? "video" : "videos"}.`,
-      why: `This reinforces ${interest.name} in proportion to your ${interest.strength}% interest strength.`,
+      why: `${interest.name} has a ${interest.strength}% interest strength and should be reinforced in proportion to your other interests.`,
     };
   });
 }
 
+/**
+ * Build SEARCH actions for a day.
+ * Uses progressive search strategy (broad → specific → discovery).
+ */
 function buildSearchActions(
   interests: FeedPreference[],
   dayIndex: number
 ): TrainingAction[] {
-  const searchCount = Math.min(
-    interests.length,
-    dayIndex === 2 || dayIndex === 5 ? 3 : 2
-  );
+  // Vary search count by day
+  let searchCount: number;
+  if (dayIndex === 0 || dayIndex === 6) searchCount = 1; // Days 1 & 7: light
+  else if (dayIndex === 2 || dayIndex === 4) searchCount = 3; // Days 3 & 5: high
+  else searchCount = 2; // Days 2, 4, 6: moderate
+
+  searchCount = Math.min(searchCount, interests.length);
 
   return interests.slice(0, searchCount).map(interest => {
     const query = searchQueryFor(interest, dayIndex);
 
     return {
       id: `day-${dayIndex + 1}-search-${actionSlug(query)}`,
-      type: "SEARCH",
+      type: "SEARCH" as const,
       title: `Search "${query}"`,
       topic: interest.id,
       topicName: interest.name,
       query,
       platform: DEFAULT_PLATFORM,
       description: `Search "${query}" and choose results that genuinely match what you want more of.`,
-      why: `Searches give the recommendation system a clearer active signal for ${interest.name}.`,
+      why: `Active searches help the recommendation system understand your interests more clearly. Specific searches compound upon each other throughout the week.`,
     };
   });
 }
 
+/**
+ * Build FOLLOW/SUBSCRIBE actions for a day.
+ *
+ * Creator strategy:
+ * Day 1 (ESTABLISH): Discover 1-2 creators from strongest topics
+ * Days 2-3 (REINFORCE, STRENGTHEN): Follow top creators
+ * Day 4 (EXPAND): Explore adjacent topics, 2-3 creators
+ * Day 5 (DEEPEN): Focus on strongest topic, 1-2 creators
+ * Day 6 (REFINE): Light refinement, 1 creator
+ * Day 7 (MAINTAIN): Maintenance, no new follows
+ */
 function buildCreatorActions(
   interests: FeedPreference[],
   dayIndex: number
 ): TrainingAction[] {
-  if (![0, 1, 3, 4, 6].includes(dayIndex)) return [];
+  // Skip days where we don't recommend creators
+  if (![0, 1, 2, 3, 4, 5].includes(dayIndex)) return [];
 
-  const creatorTargets =
-    dayIndex === 3 ? interests.slice(0, 3) : interests.slice(0, 2);
+  // Determine how many interests to target and which ones
+  let interestSlice: FeedPreference[];
+  let creatorsPerInterest: number;
 
-  return creatorTargets.flatMap((interest, interestIndex) => {
+  if (dayIndex === 0) {
+    // Day 1: 1-2 strongest interests, 1 creator each
+    interestSlice = interests.slice(0, Math.min(2, interests.length));
+    creatorsPerInterest = 1;
+  } else if (dayIndex === 1 || dayIndex === 2) {
+    // Days 2-3: Top interests, 1 creator each
+    interestSlice = interests.slice(0, Math.min(2, interests.length));
+    creatorsPerInterest = 1;
+  } else if (dayIndex === 3) {
+    // Day 4: Expand - top 3 interests, 1 creator each
+    interestSlice = interests.slice(0, Math.min(3, interests.length));
+    creatorsPerInterest = 1;
+  } else if (dayIndex === 4) {
+    // Day 5: Deepen - top 1 interest, 1-2 creators
+    interestSlice = interests.slice(0, 1);
+    creatorsPerInterest = 1;
+  } else {
+    // Day 6: Refine - top 1 interest, 1 creator
+    interestSlice = interests.slice(0, 1);
+    creatorsPerInterest = 1;
+  }
+
+  return interestSlice.flatMap((interest, interestIndex) => {
     const creators = creatorsFor(interest);
-    const creator = creators[(dayIndex + interestIndex) % Math.max(creators.length, 1)];
-    if (!creator) return [];
+    if (creators.length === 0) return [];
 
-    const type = creatorActionType(creator.platform);
+    const actions: TrainingAction[] = [];
 
-    return [
-      {
-        id: `day-${dayIndex + 1}-${type.toLowerCase()}-${creator.id}`,
+    for (let i = 0; i < creatorsPerInterest; i++) {
+      // Deterministically select creator based on day and interest index
+      const creatorIndex =
+        (dayIndex * 10 + interestIndex * 3 + i) % creators.length;
+      const creator = creators[creatorIndex];
+
+      if (!creator) continue;
+
+      const type = creatorActionType(creator.platform);
+
+      actions.push({
+        id: `day-${dayIndex + 1}-${type.toLowerCase()}-${creator.id}-${i}`,
         type,
         title: `${type === "SUBSCRIBE" ? "Subscribe to" : "Follow"} ${creator.name}`,
         topic: interest.id,
@@ -233,11 +371,17 @@ function buildCreatorActions(
         creator,
         description: `${type === "SUBSCRIBE" ? "Subscribe to" : "Follow"} ${creator.name} if you genuinely want more ${interest.name.toLowerCase()} content.`,
         why: creator.description,
-      },
-    ];
+      } as TrainingAction);
+    }
+
+    return actions;
   });
 }
 
+/**
+ * Build ENGAGE actions for a day.
+ * Engagement guidance varies intelligently by day and strategy.
+ */
 function buildEngageActions(
   interests: FeedPreference[],
   contentPreferences: ContentPreference[],
@@ -248,45 +392,122 @@ function buildEngageActions(
   const style = contentLabel(topContent);
   const topicText = topInterest ? `${topInterest.name.toLowerCase()} ` : "";
 
-  const descriptions = [
-    `Like or save ${style} ${topicText}content only when you genuinely want more of it.`,
-    `Watch useful ${topicText}videos fully when they actually hold your attention.`,
-    `Save practical ${style} posts you would want to revisit.`,
-    "Open a few creator profiles before following so your signal stays intentional.",
-    "Comment thoughtfully only when the conversation is genuinely relevant.",
-    "Use skip or not interested when content pulls away from your chosen topics.",
-    "Keep engagement natural: reinforce what you value, ignore what you do not.",
+  // Day-specific engagement guidance
+  const guidanceByDay = [
+    // Day 1: Establish - watch fully and intentionally
+    `Watch ${topicText}videos fully when they genuinely hold your attention. Only engage when content is truly useful.`,
+    // Day 2: Reinforce - like/save what you want more of
+    `Like and save ${style} ${topicText}content that truly represents what you want to see more of.`,
+    // Day 3: Strengthen - save tutorials and useful content
+    `Save ${style} posts and tutorials you would want to revisit. Completion signals are more powerful than passive scrolling.`,
+    // Day 4: Expand - follow creators thoughtfully
+    `Open creator profiles before following so your signal stays intentional. Quality over follow velocity.`,
+    // Day 5: Deepen - comment and engage with communities
+    `Comment thoughtfully on high-value content in your chosen topics. Meaningful engagement is more powerful than passive views.`,
+    // Day 6: Refine - use skip and filtering
+    `Use the "Not interested" or skip features when content drifts from your chosen topics. This refines your signal as much as engagement does.`,
+    // Day 7: Maintain - keep it natural
+    `Maintain your pattern naturally. Reinforcement works best when it feels intentional, not forced. Quality engagement over volume.`,
   ];
 
   return [
     {
       id: `day-${dayIndex + 1}-engage`,
-      type: "ENGAGE",
+      type: "ENGAGE" as const,
       title: "Engage naturally",
       topic: topInterest?.id,
       topicName: topInterest?.name,
-      description: descriptions[dayIndex],
-      why: "FeedSmith gives you a training target, not an automation script. Quality engagement matters more than volume.",
+      description: guidanceByDay[dayIndex],
+      why: "FeedSmith gives you a training target, not an automation script. Quality, intentional engagement teaches the algorithm better than volume.",
     },
   ];
 }
 
+/**
+ * Build AVOID actions for a day.
+ * Uses filters to suppress unwanted content.
+ */
 function buildAvoidActions(
   blueprint: SignalBlueprint,
   dayIndex: number
 ): TrainingAction[] {
   if (!blueprint.suppressed.length) return [];
 
-  return blueprint.suppressed.map(filter => ({
+  // Distribute avoidance actions to different days for variety
+  const suppressionByDay: Record<number, string[]> = {
+    0: blueprint.suppressed.slice(0, 1),
+    1: blueprint.suppressed.slice(0, 2),
+    2: blueprint.suppressed.slice(0, 3),
+    3: blueprint.suppressed.slice(1, 2),
+    4: blueprint.suppressed.slice(0, 1),
+    5: blueprint.suppressed.slice(0, 2),
+    6: [], // No avoidance on day 7 - focus on maintenance
+  };
+
+  const todaysSuppressions = suppressionByDay[dayIndex] ?? [];
+
+  return todaysSuppressions.map(filter => ({
     id: `day-${dayIndex + 1}-avoid-${actionSlug(filter)}`,
-    type: "AVOID",
+    type: "AVOID" as const,
     title: `Avoid ${filter}`,
     filter,
     description: `Skip ${filter.toLowerCase()} so you do not reinforce content you do not want in your feed.`,
-    why: "Avoiding unwanted categories reduces accidental reinforcement; FeedSmith does not block or remove them.",
+    why: "Avoiding unwanted categories reduces accidental reinforcement. FeedSmith does not block or remove them, but you can control what signals you send.",
   }));
 }
 
+/**
+ * Generate a human-readable summary of the training plan strategy.
+ * Generated from actual user data, not hardcoded.
+ */
+function generatePlanSummary(
+  blueprint: SignalBlueprint,
+  contentPreferences: ContentPreference[]
+): string {
+  const interests = getAllInterests(blueprint);
+  if (interests.length === 0) {
+    return "No interests selected yet. Build your signal to get started.";
+  }
+
+  const topInterest = interests[0];
+  const topTwo = interests.slice(0, 2);
+  const topContent = contentPreferences[0];
+
+  let summary = "";
+
+  // Start with top interests
+  if (topTwo.length === 1) {
+    summary = `Your plan is entirely focused on ${topInterest.name}.`;
+  } else {
+    const names = topTwo.map(i => i.name).join(" and ");
+    summary = `Your plan prioritizes ${names} as your core focus.`;
+  }
+
+  // Add content preference if strong
+  if (topContent && topContent.strength > 60) {
+    summary += ` ${topContent.name} content forms the core of your mix.`;
+  }
+
+  // Add progression strategy
+  if (contentPreferences.length > 1) {
+    summary += ` The first half of the week focuses on establishing and reinforcing these signals, while the second half shifts toward discovery and refinement.`;
+  } else {
+    summary += ` The plan progresses from broad discovery early in the week to deeper mastery by day 5, then refines and maintains through the weekend.`;
+  }
+
+  // Add filter note if applicable
+  if (blueprint.suppressed.length > 0) {
+    const filterCount = blueprint.suppressed.length;
+    summary += ` You've also marked ${filterCount} ${filterCount === 1 ? "category" : "categories"} to avoid.`;
+  }
+
+  return summary;
+}
+
+/**
+ * Main function to generate a complete 7-day Feed Training Plan.
+ * The plan is deterministic and derived entirely from the user's preferences.
+ */
 export function generateFeedTrainingPlan(
   blueprint: SignalBlueprint,
   platform: TrainingPlatform = DEFAULT_PLATFORM
@@ -305,8 +526,11 @@ export function generateFeedTrainingPlan(
     ],
   }));
 
+  const summary = generatePlanSummary(blueprint, contentPreferences);
+
   return {
     platform,
     days,
+    summary,
   };
 }

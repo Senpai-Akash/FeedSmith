@@ -1,4 +1,4 @@
-import { SignalBlueprint, FeedPreference, ContentPreference, FeedFilter } from './types';
+import { SignalBlueprint, FeedPreference, ContentPreference, FeedFilter, PriorityLevel, ClassifiedInterest, ClassifiedContentPreference } from './types';
 import { InstagramAnalysis } from '@/lib/instagram/types';
 import { FeedAction } from './actionPlan';
 
@@ -123,4 +123,79 @@ export function computeGapSummary(
     };
   }
   return summary;
+}
+
+/**
+ * Classifies a strength value into a priority level.
+ *
+ * Thresholds:
+ * 90–100 → Core
+ * 75–89  → Strong
+ * 50–74  → Supporting
+ * 0–49   → Secondary (or not shown)
+ */
+export function classifyPriority(strength: number): PriorityLevel {
+  if (strength >= 90) return "core";
+  if (strength >= 75) return "strong";
+  if (strength >= 50) return "supporting";
+  return "secondary";
+}
+
+/**
+ * Classifies an interest with its priority level.
+ */
+export function classifyInterest(interest: FeedPreference): ClassifiedInterest {
+  return {
+    ...interest,
+    priority: classifyPriority(interest.strength),
+  };
+}
+
+/**
+ * Classifies a content preference with its priority level.
+ */
+export function classifyContentPreference(
+  preference: ContentPreference
+): ClassifiedContentPreference {
+  return {
+    ...preference,
+    priority: classifyPriority(preference.strength),
+  };
+}
+
+/**
+ * Classifies all interests in a signal blueprint.
+ */
+export function classifyAllInterests(blueprint: SignalBlueprint): ClassifiedInterest[] {
+  return [...blueprint.primaryInterests, ...blueprint.secondaryInterests]
+    .map(classifyInterest)
+    .sort((a, b) => b.strength - a.strength);
+}
+
+/**
+ * Classifies all content preferences in a signal blueprint.
+ */
+export function classifyAllContentPreferences(
+  blueprint: SignalBlueprint
+): ClassifiedContentPreference[] {
+  return blueprint.contentPreferences
+    .map(classifyContentPreference)
+    .sort((a, b) => b.strength - a.strength);
+}
+
+/**
+ * Determines the training intensity for a given day.
+ * This affects the number and complexity of actions.
+ *
+ * Pattern:
+ * Days 1-2: Moderate (establish & reinforce)
+ * Days 3-5: High (strengthen, expand, deepen)
+ * Day 6: Moderate (refine)
+ * Day 7: Maintenance (maintain)
+ */
+export function getTrainingIntensity(dayIndex: number): "high" | "moderate" | "maintenance" {
+  if (dayIndex <= 1) return "moderate";
+  if (dayIndex >= 2 && dayIndex <= 4) return "high";
+  if (dayIndex === 5) return "moderate";
+  return "maintenance";
 }

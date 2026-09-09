@@ -146,4 +146,31 @@ export interface FeedTrainingDay {
 export interface FeedTrainingPlan {
   platform: TrainingPlatform;
   days: FeedTrainingDay[];
+  summary: string;
+}
+
+/**
+ * Priority classification for interests and content preferences.
+ * Used to determine how prominently an item should be featured.
+ */
+export type PriorityLevel = "core" | "strong" | "supporting" | "secondary";
+
+/**
+ * Training intensity for a given day.
+ * Affects the number of actions and their complexity.
+ */
+export type TrainingIntensity = "high" | "moderate" | "maintenance";
+
+/**
+ * Represents an interest with its priority classification.
+ */
+export interface ClassifiedInterest extends FeedPreference {
+  priority: PriorityLevel;
+}
+
+/**
+ * Represents a content preference with its priority classification.
+ */
+export interface ClassifiedContentPreference extends ContentPreference {
+  priority: PriorityLevel;
 }

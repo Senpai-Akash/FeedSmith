@@ -209,7 +209,7 @@ export default function ProfilePage() {
           <header className="flex flex-col gap-3 pb-2">
             <p className="text-xs font-medium uppercase tracking-[0.32em] text-white/40">FeedSmith</p>
             <h1 className="mt-1 text-3xl font-medium leading-tight md:text-5xl">Your personalized feed training plan</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-white/55">Based on the interests and content preferences you selected.</p>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-white/55">{plan.summary}</p>
           </header>
 
           {/* PRIMARY: Today's mission (dominant) */}
