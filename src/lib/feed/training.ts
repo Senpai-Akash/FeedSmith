@@ -340,6 +340,7 @@ function buildSearchActions(
  */
 function buildCreatorActions(
   interests: FeedPreference[],
+  contentPreferences: ContentPreference[],
   dayIndex: number
 ): TrainingAction[] {
   // Skip days where we don't recommend creators
@@ -374,7 +375,12 @@ function buildCreatorActions(
   if (targetInterests.length === 0) return [];
 
   // Use discovery library to select best creators
-  const selectedCreators = selectCreators(targetInterests, maxCreators);
+  const selectedCreators = selectCreators(
+    targetInterests,
+    maxCreators,
+    contentPreferences,
+    dayIndex
+  );
 
   if (selectedCreators.length === 0) return [];
 
@@ -538,7 +544,7 @@ export function generateFeedTrainingPlan(
     actions: [
       ...buildWatchActions(interests, contentPreferences, dayIndex),
       ...buildSearchActions(interests, contentPreferences, dayIndex),
-      ...buildCreatorActions(interests, dayIndex),
+      ...buildCreatorActions(interests, contentPreferences, dayIndex),
       ...buildEngageActions(interests, contentPreferences, dayIndex),
       ...buildAvoidActions(blueprint, dayIndex),
     ],

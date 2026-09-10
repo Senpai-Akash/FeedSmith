@@ -166,6 +166,16 @@ export interface DiscoverySearchQuery {
   contentTypes?: string[];
 }
 
+export interface DiscoveryCreator {
+  id: string;
+  name: string;
+  platform: TrainingPlatform | "instagram" | "youtube" | "tiktok";
+  topics: string[];
+  description: string;
+  url?: string;
+  type?: string;
+}
+
 /**
  * Represents a subtopic within a larger interest context.
  * Example: Python, React, Data Structures under Programming.
@@ -185,6 +195,7 @@ export interface DiscoveryTopic {
   /** Topic ID, typically matches interest ID */
   id: string;
   name: string;
+  aliases?: string[];
   description?: string;
   /** Related subtopics */
   subtopics: DiscoverySubtopic[];
@@ -192,6 +203,10 @@ export interface DiscoveryTopic {
   searches: DiscoverySearchQuery[];
   /** Content types typical for this topic */
   contentTypes: string[];
+  /** Curated creators associated with this topic */
+  creators?: DiscoveryCreator[];
+  /** Related topic IDs to broaden the topic map */
+  relatedTopics?: string[];
 }
 
 /**

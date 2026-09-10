@@ -18,7 +18,38 @@ export const DISCOVERY_TOPICS: Record<string, DiscoveryTopic> = {
   programming: {
     id: "programming",
     name: "Programming",
+    aliases: ["software development", "coding", "software engineering"],
     description: "Software development, coding, and programming languages",
+    relatedTopics: ["ai", "design", "technology"],
+    creators: [
+      {
+        id: "freecodecamp",
+        name: "freeCodeCamp",
+        platform: "youtube",
+        topics: ["programming", "ai", "technology"],
+        description: "Practical programming lessons, projects, and foundational CS concepts.",
+        url: "https://www.youtube.com/@freecodecamp",
+        type: "education",
+      },
+      {
+        id: "fireship",
+        name: "Fireship",
+        platform: "youtube",
+        topics: ["programming", "ai", "technology"],
+        description: "Fast-paced explainers on web development, tooling, and modern engineering.",
+        url: "https://www.youtube.com/@Fireship",
+        type: "explainers",
+      },
+      {
+        id: "the-net-ninja",
+        name: "The Net Ninja",
+        platform: "youtube",
+        topics: ["programming"],
+        description: "Structured tutorials covering web development and front-end workflows.",
+        url: "https://www.youtube.com/@NetNinja",
+        type: "tutorials",
+      },
+    ],
     subtopics: [
       {
         id: "web-development",
@@ -59,28 +90,59 @@ export const DISCOVERY_TOPICS: Record<string, DiscoveryTopic> = {
     ],
     searches: [
       // Broad
-      { query: "programming", specificity: "broad" },
-      { query: "software development", specificity: "broad" },
-      { query: "coding tutorials", specificity: "broad" },
+      { query: "programming", specificity: "broad", contentTypes: ["tutorials", "discussions", "news"] },
+      { query: "software development", specificity: "broad", contentTypes: ["tutorials", "discussions"] },
+      { query: "coding tutorials", specificity: "broad", contentTypes: ["tutorials", "educational"] },
       // Specific
-      { query: "Python programming", specificity: "specific", subtopic: "python" },
-      { query: "JavaScript tutorials", specificity: "specific", subtopic: "javascript" },
-      { query: "React tutorials", specificity: "specific", subtopic: "react" },
-      { query: "web development projects", specificity: "specific", subtopic: "web-development" },
-      { query: "data structures explained", specificity: "specific", subtopic: "data-structures" },
+      { query: "Python programming", specificity: "specific", subtopic: "python", contentTypes: ["tutorials", "project-walkthroughs"] },
+      { query: "JavaScript tutorials", specificity: "specific", subtopic: "javascript", contentTypes: ["tutorials", "project-walkthroughs"] },
+      { query: "React tutorials", specificity: "specific", subtopic: "react", contentTypes: ["tutorials", "project-walkthroughs"] },
+      { query: "web development projects", specificity: "specific", subtopic: "web-development", contentTypes: ["tutorials", "project-walkthroughs"] },
+      { query: "data structures explained", specificity: "specific", subtopic: "data-structures", contentTypes: ["educational", "tutorials"] },
       // Discovery
-      { query: "Python async programming patterns", specificity: "discovery", subtopic: "python" },
-      { query: "React performance optimization", specificity: "discovery", subtopic: "react" },
-      { query: "open source contribution guide", specificity: "discovery", subtopic: "open-source" },
-      { query: "system design interviews", specificity: "discovery", subtopic: "data-structures" },
+      { query: "Python async programming patterns", specificity: "discovery", subtopic: "python", contentTypes: ["tutorials", "discussions"] },
+      { query: "React performance optimization", specificity: "discovery", subtopic: "react", contentTypes: ["tutorials", "discussions"] },
+      { query: "open source contribution guide", specificity: "discovery", subtopic: "open-source", contentTypes: ["tutorials", "discussions"] },
+      { query: "system design interviews", specificity: "discovery", subtopic: "data-structures", contentTypes: ["tutorials", "discussions"] },
     ],
-    contentTypes: ["tutorials", "educational", "discussions"],
+    contentTypes: ["tutorials", "educational", "project-walkthroughs", "discussions", "news"],
   },
 
   ai: {
     id: "ai",
     name: "AI",
+    aliases: ["artificial intelligence", "machine learning", "ml"],
     description: "Artificial intelligence, machine learning, and related fields",
+    relatedTopics: ["programming", "technology", "science"],
+    creators: [
+      {
+        id: "two-minute-papers",
+        name: "Two Minute Papers",
+        platform: "youtube",
+        topics: ["ai", "science"],
+        description: "Accessible AI research explainers and visible breakthroughs in machine learning.",
+        url: "https://www.youtube.com/@TwoMinutePapers",
+        type: "research",
+      },
+      {
+        id: "fireship",
+        name: "Fireship",
+        platform: "youtube",
+        topics: ["programming", "ai", "technology"],
+        description: "Short-form AI explainers and implementation stories without the fluff.",
+        url: "https://www.youtube.com/@Fireship",
+        type: "explainers",
+      },
+      {
+        id: "freecodecamp",
+        name: "freeCodeCamp",
+        platform: "youtube",
+        topics: ["programming", "ai", "technology"],
+        description: "Hands-on AI and practical programming tutorials for builders.",
+        url: "https://www.youtube.com/@freecodecamp",
+        type: "education",
+      },
+    ],
     subtopics: [
       {
         id: "machine-learning",
@@ -109,29 +171,52 @@ export const DISCOVERY_TOPICS: Record<string, DiscoveryTopic> = {
     ],
     searches: [
       // Broad
-      { query: "artificial intelligence", specificity: "broad" },
-      { query: "machine learning basics", specificity: "broad" },
+      { query: "artificial intelligence", specificity: "broad", contentTypes: ["educational", "news"] },
+      { query: "machine learning basics", specificity: "broad", contentTypes: ["educational", "tutorials"] },
       // Specific
-      { query: "machine learning tutorials", specificity: "specific", subtopic: "machine-learning" },
-      { query: "LLM explained", specificity: "specific", subtopic: "llms" },
-      { query: "neural networks basics", specificity: "specific", subtopic: "neural-networks" },
-      { query: "how to use ChatGPT effectively", specificity: "specific", subtopic: "ai-tools" },
+      { query: "machine learning tutorials", specificity: "specific", subtopic: "machine-learning", contentTypes: ["tutorials", "educational"] },
+      { query: "LLM explained", specificity: "specific", subtopic: "llms", contentTypes: ["educational", "tutorials"] },
+      { query: "neural networks basics", specificity: "specific", subtopic: "neural-networks", contentTypes: ["educational", "tutorials"] },
+      { query: "how to use ChatGPT effectively", specificity: "specific", subtopic: "ai-tools", contentTypes: ["tutorials", "discussions"] },
       // Discovery
       {
         query: "transformer architecture deep dive",
         specificity: "discovery",
         subtopic: "neural-networks",
+        contentTypes: ["tutorials", "educational"],
       },
-      { query: "fine-tuning language models", specificity: "discovery", subtopic: "llms" },
-      { query: "building with AI APIs", specificity: "discovery", subtopic: "ai-tools" },
+      { query: "fine-tuning language models", specificity: "discovery", subtopic: "llms", contentTypes: ["tutorials", "discussions"] },
+      { query: "building with AI APIs", specificity: "discovery", subtopic: "ai-tools", contentTypes: ["tutorials", "project-walkthroughs"] },
     ],
-    contentTypes: ["educational", "tutorials", "discussions"],
+    contentTypes: ["educational", "tutorials", "project-walkthroughs", "discussions", "news"],
   },
 
   cats: {
     id: "cats",
     name: "Cats",
+    aliases: ["felines", "cat care", "cat behavior"],
     description: "Feline behavior, care, and entertainment",
+    relatedTopics: ["design", "photography"],
+    creators: [
+      {
+        id: "jackson-galaxy",
+        name: "Jackson Galaxy",
+        platform: "youtube",
+        topics: ["cats"],
+        description: "Cat behavior education and practical cat-care guidance.",
+        url: "https://www.youtube.com/@JacksonGalaxy",
+        type: "education",
+      },
+      {
+        id: "kitten-lady",
+        name: "Kitten Lady",
+        platform: "youtube",
+        topics: ["cats"],
+        description: "Kitten rescue, care, and welfare education with a practical perspective.",
+        url: "https://www.youtube.com/@KittenLady",
+        type: "care",
+      },
+    ],
     subtopics: [
       {
         id: "cat-behavior",
@@ -166,25 +251,38 @@ export const DISCOVERY_TOPICS: Record<string, DiscoveryTopic> = {
     ],
     searches: [
       // Broad
-      { query: "cats", specificity: "broad" },
-      { query: "cat videos", specificity: "broad" },
+      { query: "cats", specificity: "broad", contentTypes: ["entertainment", "educational"] },
+      { query: "cat videos", specificity: "broad", contentTypes: ["entertainment", "funny-clips"] },
       // Specific
-      { query: "cat behavior explained", specificity: "specific", subtopic: "cat-behavior" },
-      { query: "cat care tips", specificity: "specific", subtopic: "cat-care" },
-      { query: "funny cats", specificity: "specific", subtopic: "funny-cats" },
-      { query: "kitten rescue stories", specificity: "specific", subtopic: "rescue-adoption" },
+      { query: "cat behavior explained", specificity: "specific", subtopic: "cat-behavior", contentTypes: ["educational", "tutorials"] },
+      { query: "cat care tips", specificity: "specific", subtopic: "cat-care", contentTypes: ["educational", "tutorials"] },
+      { query: "funny cats", specificity: "specific", subtopic: "funny-cats", contentTypes: ["entertainment", "funny-clips"] },
+      { query: "kitten rescue stories", specificity: "specific", subtopic: "rescue-adoption", contentTypes: ["educational", "discussions"] },
       // Discovery
-      { query: "feline body language guide", specificity: "discovery", subtopic: "cat-behavior" },
-      { query: "indoor cat enrichment ideas", specificity: "discovery", subtopic: "cat-training" },
-      { query: "cat nutrition and diet", specificity: "discovery", subtopic: "cat-care" },
+      { query: "feline body language guide", specificity: "discovery", subtopic: "cat-behavior", contentTypes: ["educational", "discussions"] },
+      { query: "indoor cat enrichment ideas", specificity: "discovery", subtopic: "cat-training", contentTypes: ["tutorials", "educational"] },
+      { query: "cat nutrition and diet", specificity: "discovery", subtopic: "cat-care", contentTypes: ["educational", "tutorials"] },
     ],
-    contentTypes: ["educational", "entertainment", "discussions"],
+    contentTypes: ["educational", "entertainment", "funny-clips", "tutorials", "discussions"],
   },
 
   design: {
     id: "design",
     name: "Design",
+    aliases: ["visual design", "ux design", "ui design"],
     description: "Visual design, UX, and creative design disciplines",
+    relatedTopics: ["programming", "technology"],
+    creators: [
+      {
+        id: "adobe-max",
+        name: "Adobe MAX",
+        platform: "youtube",
+        topics: ["design"],
+        description: "Design inspiration, product thinking, and creative workflows.",
+        url: "https://www.youtube.com/@AdobeCreativeCloud",
+        type: "inspiration",
+      },
+    ],
     subtopics: [
       {
         id: "ui-design",
@@ -213,19 +311,19 @@ export const DISCOVERY_TOPICS: Record<string, DiscoveryTopic> = {
     ],
     searches: [
       // Broad
-      { query: "design", specificity: "broad" },
-      { query: "design tutorials", specificity: "broad" },
+      { query: "design", specificity: "broad", contentTypes: ["tutorials", "discussions"] },
+      { query: "design tutorials", specificity: "broad", contentTypes: ["tutorials", "educational"] },
       // Specific
-      { query: "UI design tutorials", specificity: "specific", subtopic: "ui-design" },
-      { query: "UX design principles", specificity: "specific", subtopic: "ux-design" },
-      { query: "typography basics", specificity: "specific", subtopic: "visual-design" },
-      { query: "product design process", specificity: "specific", subtopic: "product-design" },
+      { query: "UI design tutorials", specificity: "specific", subtopic: "ui-design", contentTypes: ["tutorials", "educational"] },
+      { query: "UX design principles", specificity: "specific", subtopic: "ux-design", contentTypes: ["educational", "discussions"] },
+      { query: "typography basics", specificity: "specific", subtopic: "visual-design", contentTypes: ["tutorials", "educational"] },
+      { query: "product design process", specificity: "specific", subtopic: "product-design", contentTypes: ["tutorials", "discussions"] },
       // Discovery
-      { query: "design system best practices", specificity: "discovery", subtopic: "ui-design" },
-      { query: "user research methods", specificity: "discovery", subtopic: "ux-design" },
-      { query: "accessibility in design", specificity: "discovery", subtopic: "ux-design" },
+      { query: "design system best practices", specificity: "discovery", subtopic: "ui-design", contentTypes: ["tutorials", "discussions"] },
+      { query: "user research methods", specificity: "discovery", subtopic: "ux-design", contentTypes: ["educational", "discussions"] },
+      { query: "accessibility in design", specificity: "discovery", subtopic: "ux-design", contentTypes: ["tutorials", "educational"] },
     ],
-    contentTypes: ["tutorials", "educational", "discussions"],
+    contentTypes: ["tutorials", "educational", "discussions", "news"],
   },
 
   science: {

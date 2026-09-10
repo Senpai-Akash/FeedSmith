@@ -15,6 +15,10 @@ import {
 import {
   getRelevantSubtopics,
   getDiscoveryTopic,
+  selectCreators,
+  selectSearchQuery,
+  generateSearchExplanation,
+  generateCreatorExplanation,
 } from "@/lib/feed/discoverySelection";
 
 const PROGRESS_STORAGE_KEY = "feedTrainingProgress";
@@ -193,6 +197,49 @@ export default function ProfilePage() {
       },
     }));
   };
+
+  const discoveryInterests = useMemo(
+    () => sortedInterests.slice(0, 2),
+    [sortedInterests]
+  );
+
+  const discoveryRecommendations = useMemo(
+    () =>
+      discoveryInterests.map(interest => {
+        const topic = getDiscoveryTopic(interest.id);
+        const searches = topic
+          ? topic.searches
+              .filter(query => query.specificity !== "discovery" || interest.strength > 60)
+              .slice(0, 3)
+              .map(query => ({
+                label: query.query,
+                why: generateSearchExplanation(interest, sortedContentPreferences, true),
+              }))
+          : [{ label: `${interest.name} tutorials`, why: generateSearchExplanation(interest, sortedContentPreferences, true) }];
+
+        const creators = selectCreators(
+          [interest],
+          2,
+          sortedContentPreferences,
+          dayIndex
+        );
+
+        const explore = topic
+          ? topic.subtopics.slice(0, 3).map(subtopic => ({
+              id: subtopic.id,
+              name: subtopic.name,
+            }))
+          : [];
+
+        return {
+          interest,
+          searches,
+          creators,
+          explore,
+        };
+      }),
+    [dayIndex, discoveryInterests, sortedContentPreferences]
+  );
 
   if (!hasLoadedPreferences) {
     return (
@@ -377,6 +424,70 @@ export default function ProfilePage() {
                 )}
               </div>
             </aside>
+          </section>
+
+          {/* Discovery layer: Curated searches, creators, and subtopics */}
+          <section className="grid gap-4 lg:grid-cols-3">
+            <div className="rounded-lg border border-white/10 bg-white/[0.02] p-4">
+              <h3 className="text-xs font-medium uppercase tracking-[0.28em] text-white/35">Search</h3>
+              <div className="mt-4 space-y-3">
+                {discoveryRecommendations.flatMap(({ interest, searches }) =>
+                  searches.map((item, index) => (
+                    <div key={`${interest.id}-search-${index}`} className="rounded-md border border-white/8 bg-black/20 p-3">
+                      <div className="text-sm font-medium text-white">{item.label}</div>
+                      <button
+                        type="button"
+                        className="mt-2 inline-flex rounded-full border border-white/10 px-2 py-1 text-[10px] uppercase tracking-[0.16em] text-white/50 hover:border-white/25"
+                      >
+                        Search suggestion
+                      </button>
+                      <div className="mt-2 text-[11px] leading-5 text-white/40">
+                        Why this? {item.why}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-white/10 bg-white/[0.02] p-4">
+              <h3 className="text-xs font-medium uppercase tracking-[0.28em] text-white/35">Who to follow</h3>
+              <div className="mt-4 space-y-3">
+                {discoveryRecommendations.flatMap(({ interest, creators }) =>
+                  creators.map(creator => (
+                    <div key={`${interest.id}-${creator.id}`} className="rounded-md border border-white/8 bg-black/20 p-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="text-sm font-medium text-white">{creator.name}</div>
+                        <span className="text-[10px] uppercase tracking-[0.16em] text-white/45">{creator.platform}</span>
+                      </div>
+                      <div className="mt-1 text-[11px] text-white/45">{creator.topics.join(" · ") || interest.name}</div>
+                      <div className="mt-2 text-[11px] leading-5 text-white/40">
+                        Why this? {generateCreatorExplanation(creator, [interest])}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-white/10 bg-white/[0.02] p-4">
+              <h3 className="text-xs font-medium uppercase tracking-[0.28em] text-white/35">Explore</h3>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {discoveryRecommendations.flatMap(({ interest, explore }) =>
+                  explore.map(subtopic => (
+                    <div
+                      key={`${interest.id}-${subtopic.id}`}
+                      className="rounded-full border border-white/10 bg-white/[0.025] px-2.5 py-1 text-[11px] text-white/60"
+                    >
+                      {subtopic.name}
+                    </div>
+                  ))
+                )}
+              </div>
+              <div className="mt-4 text-[11px] leading-5 text-white/40">
+                These are the subtopics most aligned with your current signal and selected content style.
+              </div>
+            </div>
           </section>
 
           {/* 7-day detail grid (expanded) */}
