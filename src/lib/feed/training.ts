@@ -13,17 +13,10 @@ import {
   INTEREST_SEARCH_SUGGESTIONS,
 } from "./interestData";
 import {
-  getTrainingIntensity,
-  classifyAllInterests,
-  classifyAllContentPreferences,
-  classifyPriority,
-} from "./analysis";
-import {
   selectSearchQuery,
   selectCreators,
   generateSearchExplanation,
   generateCreatorExplanation,
-  getRelevantSubtopics,
 } from "./discoverySelection";
 
 const DEFAULT_PLATFORM: TrainingPlatform = "instagram";
@@ -280,7 +273,7 @@ function buildWatchActions(
       contentPreferenceName,
       platform: DEFAULT_PLATFORM,
       description: `Watch ${count} ${style} ${interest.name.toLowerCase()} ${count === 1 ? "video" : "videos"}.`,
-      why: `${interest.name} has a ${interest.strength}% interest strength and should be reinforced in proportion to your other interests.`,
+      why: `This reinforces ${interest.name} at ${interest.strength}/100 in a way that matches your ${contentPreferenceName.toLowerCase()} preference without overloading weaker signals.`,
     };
   });
 }
@@ -556,5 +549,51 @@ export function generateFeedTrainingPlan(
     platform,
     days,
     summary,
+  };
+}
+
+export function normalizeCompletedActions(raw: unknown): Record<string, boolean> {
+  if (!raw || typeof raw !== "object") {
+    return {};
+  }
+
+  const completed: Record<string, boolean> = {};
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof key === "string" && typeof value === "boolean") {
+      completed[key] = value;
+    }
+  }
+
+  return completed;
+}
+
+export function calculateDayProgress(
+  day: FeedTrainingDay,
+  completed: Record<string, boolean>
+): { completedCount: number; totalActions: number; progressPercent: number } {
+  const totalActions = day.actions.length;
+  const completedCount = day.actions.filter(action => completed[action.id]).length;
+
+  return {
+    completedCount,
+    totalActions,
+    progressPercent: totalActions > 0 ? Math.round((completedCount / totalActions) * 100) : 0,
+  };
+}
+
+export function calculatePlanProgress(
+  plan: FeedTrainingPlan,
+  completed: Record<string, boolean>
+): { completedCount: number; totalActions: number; progressPercent: number } {
+  const totalActions = plan.days.reduce((sum, day) => sum + day.actions.length, 0);
+  const completedCount = plan.days.reduce(
+    (sum, day) => sum + day.actions.filter(action => completed[action.id]).length,
+    0
+  );
+
+  return {
+    completedCount,
+    totalActions,
+    progressPercent: totalActions > 0 ? Math.round((completedCount / totalActions) * 100) : 0,
   };
 }

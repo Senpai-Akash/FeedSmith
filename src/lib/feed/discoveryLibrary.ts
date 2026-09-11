@@ -370,6 +370,26 @@ export const DISCOVERY_TOPICS: Record<string, DiscoveryTopic> = {
     id: "gaming",
     name: "Gaming",
     description: "Video games, game development, and gaming culture",
+    creators: [
+      {
+        id: "gdc",
+        name: "GDC",
+        platform: "youtube",
+        topics: ["gaming"],
+        description: "Game design, production, and dev insights from the people building games.",
+        url: "https://www.youtube.com/@GDC",
+        type: "industry",
+      },
+      {
+        id: "jordan-rivory",
+        name: "Jordan Rivory",
+        platform: "youtube",
+        topics: ["gaming"],
+        description: "FPS tactics, game analysis, and practical competitive guidance.",
+        url: "https://www.youtube.com/@JordanRivory",
+        type: "analysis",
+      },
+    ],
     subtopics: [
       {
         id: "game-development",
@@ -494,6 +514,26 @@ export const DISCOVERY_TOPICS: Record<string, DiscoveryTopic> = {
     id: "fitness",
     name: "Fitness",
     description: "Exercise, health, and wellness",
+    creators: [
+      {
+        id: "nate-berkus",
+        name: "Nate Berkus",
+        platform: "youtube",
+        topics: ["fitness"],
+        description: "Strength and conditioning guidance built around practical progress and consistency.",
+        url: "https://www.youtube.com/@NateBerkus",
+        type: "fitness",
+      },
+      {
+        id: "bodyfit-by-brian",
+        name: "BodyFit by Brian",
+        platform: "youtube",
+        topics: ["fitness"],
+        description: "Workout plans and strength-training education aimed at sustainable progress.",
+        url: "https://www.youtube.com/@bodyfitbybrian",
+        type: "fitness",
+      },
+    ],
     subtopics: [
       {
         id: "strength-training",

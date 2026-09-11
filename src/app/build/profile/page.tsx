@@ -3,9 +3,14 @@
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
+import {
+  calculateDayProgress,
+  calculatePlanProgress,
+  generateFeedTrainingPlan,
+  normalizeCompletedActions,
+} from "@/lib/feed/training";
 import { generateSignalBlueprint } from "@/lib/feed/blueprint";
-import { loadPreferences } from "@/lib/feed/preferences";
-import { generateFeedTrainingPlan } from "@/lib/feed/training";
+import { loadPreferences, normalizePreferences } from "@/lib/feed/preferences";
 import {
   FeedPreferences,
   FeedTrainingDay,
@@ -13,10 +18,8 @@ import {
   TrainingActionType,
 } from "@/lib/feed/types";
 import {
-  getRelevantSubtopics,
   getDiscoveryTopic,
   selectCreators,
-  selectSearchQuery,
   generateSearchExplanation,
   generateCreatorExplanation,
 } from "@/lib/feed/discoverySelection";
@@ -56,13 +59,15 @@ function loadTrainingProgress(planKey: string): TrainingProgress {
     if (!raw) return { planKey, completed: {} };
 
     const parsed = JSON.parse(raw) as Partial<TrainingProgress>;
-    if (parsed.planKey !== planKey || !parsed.completed) {
+    const safeCompleted = normalizeCompletedActions(parsed.completed);
+
+    if (parsed.planKey !== planKey) {
       return { planKey, completed: {} };
     }
 
     return {
       planKey,
-      completed: parsed.completed,
+      completed: safeCompleted,
     };
   } catch {
     return { planKey, completed: {} };
@@ -139,11 +144,7 @@ export default function ProfilePage() {
   useEffect(() => {
     const timeout = window.setTimeout(() => {
       const stored = loadPreferences();
-      setPrefs({
-        interests: stored.interests ?? [],
-        contentPreferences: stored.contentPreferences ?? [],
-        filters: stored.filters ?? [],
-      });
+      setPrefs(normalizePreferences(stored));
       setHasLoadedPreferences(true);
     }, 0);
 
@@ -153,7 +154,7 @@ export default function ProfilePage() {
   const blueprint = useMemo(() => generateSignalBlueprint(prefs), [prefs]);
   const plan = useMemo(() => generateFeedTrainingPlan(blueprint), [blueprint]);
   const storageKey = useMemo(() => planStorageKey(plan.days), [plan.days]);
-  const currentDay = plan.days[dayIndex];
+  const currentDay = plan.days[Math.min(dayIndex, plan.days.length - 1)] ?? plan.days[0];
   const sortedInterests = useMemo(
     () => [...prefs.interests].sort((a, b) => b.strength - a.strength),
     [prefs.interests]
@@ -180,13 +181,8 @@ export default function ProfilePage() {
     saveTrainingProgress(progress);
   }, [progress]);
 
-  const completedCount = currentDay.actions.filter(
-    action => progress.completed[action.id]
-  ).length;
-  const totalActions = currentDay.actions.length;
-  const progressPercent = totalActions
-    ? Math.round((completedCount / totalActions) * 100)
-    : 0;
+  const currentDayProgress = calculateDayProgress(currentDay, progress.completed);
+  const overallPlanProgress = calculatePlanProgress(plan, progress.completed);
 
   const toggleAction = (actionId: string) => {
     setProgress(current => ({
@@ -196,6 +192,11 @@ export default function ProfilePage() {
         [actionId]: !current.completed[actionId],
       },
     }));
+  };
+
+  const resetTraining = () => {
+    setProgress({ planKey: storageKey, completed: {} });
+    setDayIndex(0);
   };
 
   const discoveryInterests = useMemo(
@@ -299,7 +300,7 @@ export default function ProfilePage() {
                   <button type="button" aria-label="previous day" disabled={dayIndex === 0} onClick={() => setDayIndex(i => Math.max(0, i - 1))} className="rounded-full border border-white/15 px-3 py-2 text-sm text-white/70 hover:border-white/30 disabled:opacity-30">←</button>
                   <div className="text-center">
                     <div className="text-xs font-medium uppercase tracking-[0.12em] text-white/38">Day {currentDay.day} of 7</div>
-                    <div className="mt-1 text-sm text-white/65">{completedCount} / {totalActions} actions</div>
+                    <div className="mt-1 text-sm text-white/65">{currentDayProgress.completedCount} / {currentDay.actions.length} actions</div>
                   </div>
                   <button type="button" aria-label="next day" disabled={dayIndex === plan.days.length - 1} onClick={() => setDayIndex(i => Math.min(plan.days.length - 1, i + 1))} className="rounded-full border border-white/15 px-3 py-2 text-sm text-white/70 hover:border-white/30 disabled:opacity-30">→</button>
                 </div>
@@ -345,19 +346,29 @@ export default function ProfilePage() {
                 <div className="mt-3">
                   <div className="flex items-center justify-between">
                     <div className="text-sm font-medium">Day {currentDay.day} progress</div>
-                    <div className="text-sm tabular-nums text-white/70">{progressPercent}%</div>
+                    <div className="text-sm tabular-nums text-white/70">{currentDayProgress.progressPercent}%</div>
                   </div>
                   <div className="mt-2 h-2 w-full rounded-full bg-white/8">
-                    <div className="h-full rounded-full bg-violet-400 transition-all" style={{ width: `${progressPercent}%` }} />
+                    <div className="h-full rounded-full bg-violet-400 transition-all" style={{ width: `${currentDayProgress.progressPercent}%` }} />
                   </div>
                 </div>
-                <div className="mt-3 text-xs text-white/45">{completedCount} / {totalActions} actions complete</div>
+                <div className="mt-3 text-xs text-white/45">{currentDayProgress.completedCount} / {currentDayProgress.totalActions} actions complete</div>
+                <div className="mt-3 border-t border-white/8 pt-3 text-xs text-white/45">
+                  Overall plan: {overallPlanProgress.completedCount} / {overallPlanProgress.totalActions} actions complete · {overallPlanProgress.progressPercent}%
+                </div>
+                <button
+                  type="button"
+                  onClick={resetTraining}
+                  className="mt-3 inline-flex rounded-full border border-white/15 px-3 py-2 text-[10px] uppercase tracking-[0.18em] text-white/60 transition hover:border-white/30 hover:text-white"
+                >
+                  Reset training
+                </button>
               </div>
 
               <div className="rounded-lg border border-white/10 bg-white/[0.02] p-3">
                 <h4 className="text-xs font-medium uppercase tracking-[0.22em] text-white/38">7‑day plan</h4>
                 <div className="mt-3 grid grid-cols-7 gap-2">
-                  {plan.days.map((d, i) => (
+                  {plan.days.map((d: FeedTrainingDay, i: number) => (
                     <button key={d.day} onClick={() => setDayIndex(i)} aria-current={i === dayIndex} className={`rounded-md py-2 text-center text-xs font-medium transition ${i === dayIndex ? 'bg-violet-300/20 border border-violet-300/40 text-white' : 'bg-white/[0.02] border border-white/6 text-white/60 hover:bg-white/[0.035]'}`}>
                       <div className="tabular-nums">{String(d.day).padStart(2, '0')}</div>
                       <div className="mt-1 text-[10px] text-white/50 leading-4">{d.stage}</div>
@@ -494,7 +505,7 @@ export default function ProfilePage() {
           <section>
             <h2 className="text-xs font-medium uppercase tracking-[0.28em] text-white/38">Plan overview</h2>
             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-7">
-              {plan.days.map((day, index) => (
+              {plan.days.map((day: FeedTrainingDay, index: number) => (
                 <button key={day.day} type="button" onClick={() => setDayIndex(index)} className={`rounded-md border p-4 text-left transition ${index === dayIndex ? 'border-violet-200/60 bg-violet-300/[0.08]' : 'border-white/10 bg-white/[0.012] hover:border-white/25'}`}>
                   <span className="block text-xs uppercase tracking-[0.2em] text-white/40">{String(day.day).padStart(2,'0')}</span>
                   <span className="mt-2 block text-sm font-medium text-white">{day.stage}</span>

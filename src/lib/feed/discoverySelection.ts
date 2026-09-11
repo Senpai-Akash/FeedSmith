@@ -46,16 +46,20 @@ function scoreSearchQuery(
   // Specificity matching: days progress through broad → specific → discovery.
   if (dayIndex < 2) {
     if (query.specificity === "broad") score += 12;
-    else if (query.specificity === "specific") score += 7;
+    else if (query.specificity === "specific") score += 9;
+    else score += 4;
   } else if (dayIndex < 4) {
     if (query.specificity === "specific") score += 12;
-    else if (query.specificity === "discovery") score += 7;
+    else if (query.specificity === "discovery") score += 8;
+    else score += 4;
   } else if (dayIndex < 6) {
-    if (query.specificity === "discovery") score += 12;
-    else if (query.specificity === "specific") score += 8;
+    if (query.specificity === "discovery") score += 13;
+    else if (query.specificity === "specific") score += 9;
+    else score += 3;
   } else {
     if (query.specificity === "broad") score += 10;
-    else if (query.specificity === "specific") score += 7;
+    else if (query.specificity === "specific") score += 8;
+    else score += 5;
   }
 
   // A direct content-type match should heavily influence priority.
@@ -64,12 +68,12 @@ function scoreSearchQuery(
       contentPreferences.map(cp => cp.id).filter(id => Boolean(id))
     );
     const matchingTypes = query.contentTypes.filter(ct => userContentTypes.has(ct));
-    score += matchingTypes.length * 5;
+    score += matchingTypes.length * 6;
   }
 
-  // Querys tied to a matching subtopic and an interest with stronger volume get a bonus.
+  // Queries tied to a matching subtopic and a strong interest get a bonus.
   if (query.subtopic) {
-    score += interest.strength > 70 ? 2 : interest.strength > 45 ? 1 : 0;
+    score += interest.strength > 75 ? 3 : interest.strength > 45 ? 1 : 0;
   }
 
   return score;
@@ -89,15 +93,19 @@ export function selectSearchQuery(
     return `${interest.name} content`;
   }
 
-  const scored = topic.searches.map((query, index) => ({
-    query,
-    score: scoreSearchQuery(query, interest, dayIndex, contentPreferences),
-    index,
-  }));
+  const preferredSpecificity: DiscoverySearchQuery["specificity"] =
+    dayIndex < 2 ? "broad" : dayIndex < 4 ? "specific" : dayIndex < 6 ? "discovery" : "specific";
 
-  scored.sort((a, b) => b.score - a.score || a.index - b.index);
+  const preferredQueries = topic.searches.filter(query => query.specificity === preferredSpecificity);
+  const orderedCandidates = (preferredQueries.length > 0 ? preferredQueries : topic.searches)
+    .map((query, index) => ({
+      query,
+      score: scoreSearchQuery(query, interest, dayIndex, contentPreferences),
+      index,
+    }))
+    .sort((a, b) => b.score - a.score || a.index - b.index);
 
-  return scored[0].query.query;
+  return orderedCandidates[0].query.query;
 }
 
 /**
@@ -209,20 +217,24 @@ export function generateSearchExplanation(
   contentPreferences: ContentPreference[],
   isTopInterest: boolean
 ): string {
+  const strengthLabel =
+    interest.strength >= 80 ? "core" : interest.strength >= 60 ? "strong" : "supporting";
+
   const parts: string[] = [];
+  parts.push(
+    `This search reinforces ${interest.name}, one of your ${strengthLabel} interests (${interest.strength}/100).`
+  );
 
   if (isTopInterest) {
-    parts.push(`${interest.name} is your strongest interest (${interest.strength}/100)`);
-  } else {
-    parts.push(`${interest.name} is one of your selected interests (${interest.strength}/100)`);
+    parts.push("It keeps the signal focused on your strongest objective instead of spreading attention too broadly.");
   }
 
   if (contentPreferences.length > 0) {
     const topContent = contentPreferences[0];
-    parts.push(`${topContent.name} is your strongest content preference (${topContent.strength}/100)`);
+    parts.push(`It also matches your strongest content style, ${topContent.name.toLowerCase()}, which keeps the signal consistent.`);
   }
 
-  return parts.join(". ") + ".";
+  return parts.join(" ");
 }
 
 /**
@@ -239,11 +251,11 @@ export function generateCreatorExplanation(
     .slice(0, 2);
 
   if (matchingInterests.length === 0) {
-    return "Matches your interests.";
+    return "Recommended because it adds another signal around your current focus without introducing unrelated topics.";
   }
 
   const topicNames = matchingInterests.map(i => i.name).join(" and ");
-  return `Focuses on ${topicNames}.`;
+  return `Recommended because ${creator.name} reinforces ${topicNames} and adds another genuine signal around the topics you already care about.`;
 }
 
 /**
