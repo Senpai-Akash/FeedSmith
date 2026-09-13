@@ -18,6 +18,7 @@ import {
   generateSearchExplanation,
   generateCreatorExplanation,
 } from "./discoverySelection";
+import { isActionableTrainingAction } from "./history";
 
 const DEFAULT_PLATFORM: TrainingPlatform = "instagram";
 
@@ -571,8 +572,9 @@ export function calculateDayProgress(
   day: FeedTrainingDay,
   completed: Record<string, boolean>
 ): { completedCount: number; totalActions: number; progressPercent: number } {
-  const totalActions = day.actions.length;
-  const completedCount = day.actions.filter(action => completed[action.id]).length;
+  const actionableActions = day.actions.filter(isActionableTrainingAction);
+  const totalActions = actionableActions.length;
+  const completedCount = actionableActions.filter(action => completed[action.id]).length;
 
   return {
     completedCount,
@@ -585,9 +587,16 @@ export function calculatePlanProgress(
   plan: FeedTrainingPlan,
   completed: Record<string, boolean>
 ): { completedCount: number; totalActions: number; progressPercent: number } {
-  const totalActions = plan.days.reduce((sum, day) => sum + day.actions.length, 0);
+  const totalActions = plan.days.reduce(
+    (sum, day) => sum + day.actions.filter(isActionableTrainingAction).length,
+    0
+  );
   const completedCount = plan.days.reduce(
-    (sum, day) => sum + day.actions.filter(action => completed[action.id]).length,
+    (sum, day) =>
+      sum +
+      day.actions
+        .filter(isActionableTrainingAction)
+        .filter(action => completed[action.id]).length,
     0
   );
 

@@ -23,6 +23,21 @@ import {
   generateSearchExplanation,
   generateCreatorExplanation,
 } from "@/lib/feed/discoverySelection";
+import {
+  calculateConsistency,
+  calculateOverallProgress,
+  calculateTopicsReinforced,
+  clearTrainingHistoryMeta,
+  createTrainingHistoryMeta,
+  deriveTrainingHistory,
+  getDayProgressPercent,
+  isActionableTrainingAction,
+  loadTrainingHistoryMeta,
+  saveTrainingHistoryMeta,
+  updateTrainingHistoryMeta,
+  calculateConsistency,
+  type TrainingHistoryMeta,
+} from "@/lib/feed/history";
 
 const PROGRESS_STORAGE_KEY = "feedTrainingProgress";
 
@@ -140,6 +155,9 @@ export default function ProfilePage() {
     planKey: "",
     completed: {},
   });
+  const [history, setHistory] = useState<TrainingHistory>(createTrainingHistory());
+  const [hasLoadedHistory, setHasLoadedHistory] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -171,6 +189,9 @@ export default function ProfilePage() {
     if (!hasLoadedPreferences) return;
     const timeout = window.setTimeout(() => {
       setProgress(loadTrainingProgress(storageKey));
+      const loadedHistory = loadTrainingHistory();
+      setHistory(loadedHistory);
+      setHasLoadedHistory(true);
     }, 0);
 
     return () => window.clearTimeout(timeout);
@@ -181,22 +202,80 @@ export default function ProfilePage() {
     saveTrainingProgress(progress);
   }, [progress]);
 
+  // Update history when plan changes or day is accessed
+  useEffect(() => {
+    if (!hasLoadedHistory || currentDay.actions.length === 0) return;
+    const updatedHistory = ensureDayHistory(history, currentDay);
+    if (updatedHistory !== history) {
+      setHistory(updatedHistory);
+      saveTrainingHistory(updatedHistory);
+    }
+  }, [hasLoadedHistory, currentDay, history]);
+
   const currentDayProgress = calculateDayProgress(currentDay, progress.completed);
   const overallPlanProgress = calculatePlanProgress(plan, progress.completed);
 
+  // Training history metrics
+  const consistency = useMemo(
+    () => (hasLoadedHistory ? calculateConsistency(history) : { daysCompleted: 0, elapsedDays: 0, percentage: 0, message: "Start Day 1 to begin tracking your consistency." }),
+    [history, hasLoadedHistory]
+  );
+
+  const topicsReinforced = useMemo(
+    () => (hasLoadedHistory ? calculateTopicsReinforced(history, plan.days) : []),
+    [history, plan.days, hasLoadedHistory]
+  );
+
+  const overallProgress = useMemo(
+    () => (hasLoadedHistory ? calculateOverallProgress(history, plan.days) : { daysCompleted: 0, totalDays: 7, daysPercentage: 0, actionsCompleted: 0, totalActions: 0, actionsPercentage: 0 }),
+    [history, plan.days, hasLoadedHistory]
+  );
+
+  const trainingStatus = useMemo(
+    () => (hasLoadedHistory ? getTrainingStatus(history, currentDay.actions) : "NOT_STARTED"),
+    [history, currentDay.actions, hasLoadedHistory]
+  );
+
   const toggleAction = (actionId: string) => {
+    const newCompleted = {
+      ...progress.completed,
+      [actionId]: !progress.completed[actionId],
+    };
     setProgress(current => ({
       planKey: storageKey,
-      completed: {
-        ...current.completed,
-        [actionId]: !current.completed[actionId],
-      },
+      completed: newCompleted,
     }));
+
+    // Update history to track action completion and topics reinforced
+    const action = plan.days
+      .flatMap(d => d.actions)
+      .find(a => a.id === actionId);
+    
+    if (action && hasLoadedHistory) {
+      const updatedHistory = updateHistoryForAction(
+        history,
+        action,
+        !progress.completed[actionId],
+        plan.days,
+        newCompleted
+      );
+      setHistory(updatedHistory);
+      saveTrainingHistory(updatedHistory);
+    }
   };
 
-  const resetTraining = () => {
+  const handleResetTraining = () => {
+    if (!showResetConfirm) {
+      setShowResetConfirm(true);
+      return;
+    }
+    
+    // Actually reset
     setProgress({ planKey: storageKey, completed: {} });
+    setHistory(resetTrainingHistory());
+    saveTrainingHistory(resetTrainingHistory());
     setDayIndex(0);
+    setShowResetConfirm(false);
   };
 
   const discoveryInterests = useMemo(
@@ -242,7 +321,7 @@ export default function ProfilePage() {
     [dayIndex, discoveryInterests, sortedContentPreferences]
   );
 
-  if (!hasLoadedPreferences) {
+  if (!hasLoadedPreferences || !hasLoadedHistory) {
     return (
       <main className="min-h-screen bg-[#08050f] text-white" />
     );
@@ -358,11 +437,24 @@ export default function ProfilePage() {
                 </div>
                 <button
                   type="button"
-                  onClick={resetTraining}
-                  className="mt-3 inline-flex rounded-full border border-white/15 px-3 py-2 text-[10px] uppercase tracking-[0.18em] text-white/60 transition hover:border-white/30 hover:text-white"
+                  onClick={handleResetTraining}
+                  className={`mt-3 inline-flex rounded-full border px-3 py-2 text-[10px] uppercase tracking-[0.18em] transition ${
+                    showResetConfirm
+                      ? 'border-red-400/50 bg-red-500/10 text-red-300 hover:border-red-400/70 hover:bg-red-500/20'
+                      : 'border-white/15 text-white/60 hover:border-white/30 hover:text-white'
+                  }`}
                 >
-                  Reset training
+                  {showResetConfirm ? 'Confirm reset' : 'Reset training'}
                 </button>
+                {showResetConfirm && (
+                  <button
+                    type="button"
+                    onClick={() => setShowResetConfirm(false)}
+                    className="mt-2 inline-flex rounded-full border border-white/15 px-3 py-2 text-[10px] uppercase tracking-[0.18em] text-white/60 transition hover:border-white/30 hover:text-white"
+                  >
+                    Cancel
+                  </button>
+                )}
               </div>
 
               <div className="rounded-lg border border-white/10 bg-white/[0.02] p-3">
@@ -436,6 +528,285 @@ export default function ProfilePage() {
               </div>
             </aside>
           </section>
+
+          {/* Training Progress Section */}
+          <section className="grid gap-4 lg:grid-cols-3">
+            {/* Overall Training Status */}
+            <div className="rounded-lg border border-white/10 bg-white/[0.02] p-4">
+              <h3 className="text-xs font-medium uppercase tracking-[0.28em] text-white/35">
+                Training Status
+              </h3>
+              <div className="mt-4 space-y-3">
+                <div>
+                  <div className="text-sm font-medium text-white">
+                    Day {history.currentDay} {history.currentDay <= 7 ? "of 7" : ""}
+                  </div>
+                  {history.trainingComplete ? (
+                    <div className="mt-1 text-xs text-green-300/80">✓ Training Complete</div>
+                  ) : history.currentDay <= 7 ? (
+                    <div className="mt-1 text-xs text-white/55">
+                      {trainingStatus === "DAY_COMPLETE" ? "✓ Complete" : "In progress"}
+                    </div>
+                  ) : null}
+                </div>
+                <div className="border-t border-white/8 pt-3">
+                  <div className="text-xs text-white/50">
+                    {overallProgress.daysCompleted} / {overallProgress.totalDays} days completed
+                  </div>
+                  <div className="mt-2 h-2 w-full rounded-full bg-white/8">
+                    <div
+                      className="h-full rounded-full bg-emerald-400 transition-all"
+                      style={{ width: `${overallProgress.daysPercentage}%` }}
+                    />
+                  </div>
+                </div>
+                <div className="border-t border-white/8 pt-3">
+                  <div className="text-xs text-white/50">
+                    {overallProgress.actionsCompleted} / {overallProgress.totalActions} actions
+                  </div>
+                  <div className="mt-2 h-2 w-full rounded-full bg-white/8">
+                    <div
+                      className="h-full rounded-full bg-violet-400 transition-all"
+                      style={{ width: `${overallProgress.actionsPercentage}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Training Consistency */}
+            <div className="rounded-lg border border-white/10 bg-white/[0.02] p-4">
+              <h3 className="text-xs font-medium uppercase tracking-[0.28em] text-white/35">
+                Consistency
+              </h3>
+              <div className="mt-4">
+                {consistency.daysCompleted === 0 ? (
+                  <div className="text-xs leading-5 text-white/50">
+                    {consistency.message}
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-2xl font-medium text-white">
+                      {consistency.percentage}%
+                    </div>
+                    <div className="mt-2 text-xs text-white/50">
+                      {consistency.message}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Topics Reinforced Summary */}
+            <div className="rounded-lg border border-white/10 bg-white/[0.02] p-4">
+              <h3 className="text-xs font-medium uppercase tracking-[0.28em] text-white/35">
+                Topics Reinforced
+              </h3>
+              <div className="mt-4 space-y-2">
+                {topicsReinforced.length === 0 ? (
+                  <div className="text-xs text-white/50">
+                    Complete actions to track topic progress.
+                  </div>
+                ) : (
+                  topicsReinforced.slice(0, 3).map(topic => (
+                    <div key={topic.topic} className="flex items-center justify-between">
+                      <div className="text-xs text-white/70">{topic.displayName}</div>
+                      <div className="text-xs tabular-nums text-white/50">
+                        {topic.actionCount}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+              {topicsReinforced.length > 3 && (
+                <div className="mt-3 border-t border-white/8 pt-3 text-[10px] text-white/40">
+                  +{topicsReinforced.length - 3} more topics
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* Signal Progress - Actions by Topic */}
+          {topicsReinforced.length > 0 && (
+            <section className="rounded-lg border border-white/10 bg-white/[0.02] p-4">
+              <h3 className="text-xs font-medium uppercase tracking-[0.28em] text-white/35">
+                Signal Progress · FeedSmith Activity
+              </h3>
+              <div className="mt-4 space-y-3">
+                {topicsReinforced.map(topic => {
+                  const maxActions = Math.max(...topicsReinforced.map(t => t.actionCount), 1);
+                  const percentage = Math.round((topic.actionCount / maxActions) * 100);
+                  return (
+                    <div key={topic.topic}>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="text-sm text-white/80">{topic.displayName}</div>
+                        <div className="text-xs tabular-nums text-white/50">
+                          {topic.actionCount} action{topic.actionCount !== 1 ? "s" : ""}
+                        </div>
+                      </div>
+                      <div className="h-2 w-full rounded-full bg-white/8">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-violet-400 to-cyan-400 transition-all"
+                          style={{ width: `${percentage}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="mt-3 border-t border-white/8 pt-3 text-[11px] leading-5 text-white/40">
+                You've reinforced these interests through FeedSmith training actions. This is not an official platform metric.
+              </div>
+            </section>
+          )}
+
+          {/* Training Timeline */}
+          <section>
+            <h2 className="text-xs font-medium uppercase tracking-[0.28em] text-white/38">
+              7-day Training Timeline
+            </h2>
+            <div className="mt-4 grid gap-2 sm:grid-cols-7">
+              {plan.days.map((day: FeedTrainingDay) => {
+                const dayHistory = history.dailyHistory.find(d => d.day === day.day);
+                const isCurrentDay = history.currentDay === day.day;
+                const isCompleted = dayHistory?.completedAt !== undefined;
+                const isFuture = day.day > history.dailyHistory.length;
+
+                return (
+                  <div
+                    key={day.day}
+                    className={`rounded-md border p-3 text-center transition ${
+                      isCompleted
+                        ? "border-emerald-200/30 bg-emerald-200/[0.06]"
+                        : isCurrentDay
+                          ? "border-violet-200/60 bg-violet-300/[0.08]"
+                          : isFuture
+                            ? "border-white/6 bg-white/[0.01]"
+                            : "border-white/10 bg-white/[0.02]"
+                    }`}
+                  >
+                    <div className="text-xs font-medium text-white/60">
+                      {isCompleted ? "✓" : isCurrentDay ? "●" : "○"} Day {day.day}
+                    </div>
+                    <div className="mt-1 text-[10px] font-medium text-white/70">
+                      {day.stage}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
+          {/* Training History Detail */}
+          {history.dailyHistory.length > 0 && (
+            <section>
+              <h2 className="text-xs font-medium uppercase tracking-[0.28em] text-white/38">
+                Training History
+              </h2>
+              <div className="mt-4 space-y-2">
+                {history.dailyHistory.map(dayRecord => {
+                  const dayData = plan.days.find(d => d.day === dayRecord.day);
+                  const isCompleted = dayRecord.completedAt !== undefined;
+
+                  return (
+                    <div
+                      key={dayRecord.day}
+                      className={`rounded-md border p-3 transition ${
+                        isCompleted
+                          ? "border-emerald-200/20 bg-emerald-200/[0.04]"
+                          : "border-white/8 bg-white/[0.02]"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-white">
+                              Day {dayRecord.day}
+                            </span>
+                            <span className="text-xs text-white/50">
+                              {dayRecord.stage}
+                            </span>
+                          </div>
+                          <div className="mt-1 text-xs text-white/40">
+                            {isCompleted ? "✓ Complete" : "In progress"} ·{" "}
+                            {dayRecord.completedActions} / {dayRecord.totalActions} actions
+                          </div>
+                        </div>
+                        <div className="flex-shrink-0">
+                          <div className="h-8 w-12 rounded-full bg-white/5">
+                            <div
+                              className={`h-full rounded-full transition-all ${
+                                isCompleted ? "bg-emerald-400" : "bg-violet-400"
+                              }`}
+                              style={{
+                                width: `${
+                                  dayRecord.totalActions > 0
+                                    ? Math.round(
+                                        (dayRecord.completedActions /
+                                          dayRecord.totalActions) *
+                                          100
+                                      )
+                                    : 0
+                                }%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
+          {/* Empty State */}
+          {history.dailyHistory.length === 0 && (
+            <section className="rounded-lg border border-white/10 bg-white/[0.02] p-8 text-center">
+              <p className="text-xs font-medium uppercase tracking-[0.3em] text-white/35">
+                Training Progress
+              </p>
+              <h2 className="mt-3 text-lg font-medium text-white">
+                You haven't started yet
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-white/55">
+                Complete your first action on today's mission to begin tracking your progress and building your training history.
+              </p>
+            </section>
+          )}
+
+          {/* Training Complete State */}
+          {history.trainingComplete && (
+            <section className="rounded-lg border border-emerald-200/30 bg-emerald-200/[0.06] p-6">
+              <p className="text-xs font-medium uppercase tracking-[0.3em] text-emerald-300/70">
+                Training Complete
+              </p>
+              <h2 className="mt-3 text-2xl font-medium text-white">
+                You've completed the FeedSmith training plan
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-white/70">
+                You've completed 7 days of intentional signal training. You've reinforced your core interests through {overallProgress.actionsCompleted} completed actions.
+              </p>
+              {topicsReinforced.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-emerald-200/20">
+                  <p className="text-xs text-white/50">Most reinforced topics:</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {topicsReinforced.slice(0, 3).map(topic => (
+                      <div
+                        key={topic.topic}
+                        className="rounded-full bg-emerald-200/[0.1] px-3 py-1 text-xs text-white/70"
+                      >
+                        {topic.displayName}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <p className="mt-4 text-xs leading-5 text-white/40">
+                FeedSmith measured your intentional activity plan, not changes to third-party recommendation algorithms.
+              </p>
+            </section>
+          )}
 
           {/* Discovery layer: Curated searches, creators, and subtopics */}
           <section className="grid gap-4 lg:grid-cols-3">
