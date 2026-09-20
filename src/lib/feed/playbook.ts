@@ -53,16 +53,14 @@ export function getPlaybookInstruction(
 
   switch (action.type) {
     case "WATCH": {
-      const a = action as any; // narrower type for convenience
-      const what = `Watch ${a.contentPreferenceName} ${a.topicName} content`;
-      const how = `Open ${platformName} and watch videos that match "${a.topicName}". Spend the full watch time to signal intent.`;
+      const what = `Watch ${action.contentPreferenceName} ${action.topicName} content`;
+      const how = `Open ${platformName} and watch videos that match "${action.topicName}". Spend the full watch time to signal intent.`;
       const doList = ["Watch the video without skipping", "Pay attention to the core message"];
       const dontList = ["Scroll past quickly", "Engage with unrelated content"];
       return { ...base, what, how, do: doList, dont: dontList };
     }
     case "SEARCH": {
-      const a = action as any;
-      const what = `Search for "${a.query}"`;
+      const what = `Search for "${action.query}"`;
       const how = `In ${platformName}'s search bar, type the query exactly as shown and explore the top results.`;
       const doList = ["Select results that truly match the intent", "Bookmark or save useful findings"];
       const dontList = ["Click click‑bait thumbnails", "Ignore the relevance of the results"];
@@ -70,11 +68,10 @@ export function getPlaybookInstruction(
     }
     case "FOLLOW":
     case "SUBSCRIBE": {
-      const a = action as any;
       const verb = action.type === "FOLLOW" ? "follow" : "subscribe to";
-      const what = `${verb.charAt(0).toUpperCase() + verb.slice(1)} ${a.creator.name} on ${platformName}`;
-      const how = `Navigate to ${a.creator.name}'s ${platformName} profile and hit the ${verb} button.`;
-      const doList = [`Ensure the creator covers ${a.topicName} topics`, `Engage with a few of their posts`];
+      const what = `${verb.charAt(0).toUpperCase() + verb.slice(1)} ${action.creator.name} on ${platformName}`;
+      const how = `Navigate to ${action.creator.name}'s ${platformName} profile and hit the ${verb} button.`;
+      const doList = [`Ensure the creator covers ${action.topicName} topics`, `Engage with a few of their posts`];
       const dontList = ["Follow unrelated creators", "Subscribe without checking their content"];
       return { ...base, what, how, do: doList, dont: dontList };
     }
@@ -86,19 +83,17 @@ export function getPlaybookInstruction(
       return { ...base, what, how, do: doList, dont: dontList };
     }
     case "AVOID": {
-      const a = action as any;
-      const what = `Avoid ${a.filter} content`;
-      const how = `When browsing ${platformName}, deliberately skip ${a.filter.toLowerCase()} posts and do not interact with them.`;
+      const what = `Avoid ${action.filter} content`;
+      const how = `When browsing ${platformName}, deliberately skip ${action.filter.toLowerCase()} posts and do not interact with them.`;
       const doList = ["Scroll past these items", "Report or mute if possible"];
       const dontList = ["Accidentally like or share", "Spend time on them"];
       return { ...base, what, how, do: doList, dont: dontList };
     }
     default: {
-      // Fallback for any future action types – keep it generic.
-      const anyAction = action as any;
+      const fallbackTitle = (action as { title?: string }).title ?? "training";
       return {
         ...base,
-        what: `Perform the ${anyAction.type?.toLowerCase() ?? "action"} action`,
+        what: `Perform the ${fallbackTitle} action`,
         how: `Use ${platformName} according to the action description.`,
         do: [],
         dont: [],

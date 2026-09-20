@@ -1,5 +1,4 @@
 import {
-  FeedPreferences,
   FeedPreference,
   ContentPreference,
   DiscoveryTopic,
@@ -8,6 +7,7 @@ import {
 } from "./types";
 import { DISCOVERY_TOPICS } from "./discoveryLibrary";
 import { INTEREST_CREATOR_CATALOG } from "./interestData";
+export { generatePersonalizedDiscovery } from "./discoveryEngine";
 
 /**
  * Discovery Selection Module

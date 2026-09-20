@@ -4,6 +4,7 @@ import test from "node:test";
 import { generateSignalBlueprint } from "./blueprint";
 import { calculatePlanProgress, generateFeedTrainingPlan, normalizeCompletedActions } from "./training";
 import { selectSearchQuery } from "./discoverySelection";
+import { isActionableTrainingAction } from "./history";
 import type { TrainingAction } from "./types";
 
 const contentPreferences = [
@@ -102,6 +103,13 @@ test("plan progress counts real completions and ignores duplicate entries", () =
 
   const progress = calculatePlanProgress(plan, completed);
   assert.equal(progress.completedCount, 2);
-  assert.equal(progress.totalActions, plan.days.reduce((sum: number, day: { actions: Array<{ id: string }> }) => sum + day.actions.length, 0));
+  assert.equal(
+    progress.totalActions,
+    plan.days.reduce(
+      (sum: number, day: { actions: TrainingAction[] }) =>
+        sum + day.actions.filter(isActionableTrainingAction).length,
+      0
+    )
+  );
   assert.ok(progress.progressPercent >= 0);
 });

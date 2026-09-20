@@ -153,6 +153,77 @@ export interface FeedTrainingPlan {
  * Discovery Library Types
  */
 
+export type DiscoveryDifficulty =
+  | "foundational"
+  | "intermediate"
+  | "advanced"
+  | "specialized";
+
+export type DiscoveryStage =
+  | "core"
+  | "related"
+  | "depth"
+  | "creator"
+  | "advanced"
+  | "crossover"
+  | "refinement";
+
+export type DiscoveryItemType =
+  | "search"
+  | "creator"
+  | "content"
+  | "topic"
+  | "crossover";
+
+export type DiscoveryActionType =
+  | "Search"
+  | "Watch"
+  | "Follow"
+  | "Explore";
+
+export interface DiscoveryPlaybookGuidance {
+  what: string;
+  how: string;
+  do: string[];
+  dont: string[];
+}
+
+export interface DiscoveryItem {
+  id: string;
+  title: string;
+  topicId: string;
+  topicName: string;
+  subtopicId?: string;
+  subtopicName?: string;
+  category?: string;
+  type: DiscoveryItemType;
+  stage: DiscoveryStage;
+  difficulty: DiscoveryDifficulty;
+  relevance: number;
+  reason: string;
+  action: DiscoveryActionType;
+  actionable: boolean;
+  actionId?: string;
+  completed?: boolean;
+  searchQuery?: string;
+  creator?: CreatorRecommendation;
+  contentTypes?: string[];
+  relatedInterests?: string[];
+  guidance?: DiscoveryPlaybookGuidance;
+}
+
+export interface DiscoveryFeed {
+  dayIndex: number;
+  stage: DiscoveryStage;
+  stageTitle: string;
+  stageGoal: string;
+  items: DiscoveryItem[];
+  searchPaths: DiscoveryItem[];
+  curatedCreators: DiscoveryItem[];
+  crossoverSuggestions: DiscoveryItem[];
+  formatRecommendations: DiscoveryItem[];
+}
+
 /**
  * Represents a search query for a topic at a specific specificity level.
  */
@@ -164,6 +235,12 @@ export interface DiscoverySearchQuery {
   subtopic?: string;
   /** Preferred content types for this search */
   contentTypes?: string[];
+  /** Difficulty level */
+  difficulty?: DiscoveryDifficulty;
+  /** Suppression/category tags */
+  tags?: string[];
+  /** For crossover queries */
+  secondaryTopic?: string;
 }
 
 export interface DiscoveryCreator {
@@ -171,6 +248,9 @@ export interface DiscoveryCreator {
   name: string;
   platform: TrainingPlatform | "instagram" | "youtube" | "tiktok";
   topics: string[];
+  subtopics?: string[];
+  contentTypes?: string[];
+  tags?: string[];
   description: string;
   url?: string;
   type?: string;
@@ -186,6 +266,8 @@ export interface DiscoverySubtopic {
   description?: string;
   /** Related topic IDs */
   related?: string[];
+  /** Suppression/category tags */
+  tags?: string[];
 }
 
 /**

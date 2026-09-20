@@ -12,32 +12,28 @@ import {
 import { generateSignalBlueprint } from "@/lib/feed/blueprint";
 import { loadPreferences, normalizePreferences } from "@/lib/feed/preferences";
 import {
+  DiscoveryItem,
   FeedPreferences,
   FeedTrainingDay,
   TrainingAction,
   TrainingActionType,
 } from "@/lib/feed/types";
+import { generatePersonalizedDiscovery } from "@/lib/feed/discoveryEngine";
 import {
-  getDiscoveryTopic,
-  selectCreators,
-  generateSearchExplanation,
-  generateCreatorExplanation,
-} from "@/lib/feed/discoverySelection";
-import {
+  DailyHistory,
   calculateConsistency,
   calculateOverallProgress,
   calculateTopicsReinforced,
   clearTrainingHistoryMeta,
   createTrainingHistoryMeta,
   deriveTrainingHistory,
-  getDayProgressPercent,
   isActionableTrainingAction,
   loadTrainingHistoryMeta,
   saveTrainingHistoryMeta,
   updateTrainingHistoryMeta,
-  calculateConsistency,
   type TrainingHistoryMeta,
 } from "@/lib/feed/history";
+import { getPlaybookInstruction, type PlatformInstruction } from "@/lib/feed/playbook";
 
 const PROGRESS_STORAGE_KEY = "feedTrainingProgress";
 
@@ -125,72 +121,53 @@ function actionDetail(action: TrainingAction): string | undefined {
   return undefined;
 }
 
-/**
- * Get subtopics for an interest using the discovery library.
- */
-function getSubtopicsList(interestId: string, maxCount: number = 3): Array<{ id: string; name: string }> {
-  try {
-    const topic = getDiscoveryTopic(interestId);
-    if (!topic || topic.subtopics.length === 0) {
-      return [];
-    }
-    return topic.subtopics.slice(0, maxCount).map(st => ({
-      id: st.id,
-      name: st.name,
-    }));
-  } catch {
-    return [];
-  }
-}
-
 export default function ProfilePage() {
-  const [prefs, setPrefs] = useState<FeedPreferences>({
+  const [preferences, setPreferences] = useState<FeedPreferences>({
     interests: [],
     contentPreferences: [],
     filters: [],
   });
-  const [hasLoadedPreferences, setHasLoadedPreferences] = useState(false);
   const [dayIndex, setDayIndex] = useState(0);
+  const [hasLoadedPreferences, setHasLoadedPreferences] = useState(false);
   const [progress, setProgress] = useState<TrainingProgress>({
     planKey: "",
     completed: {},
   });
-  const [history, setHistory] = useState<TrainingHistory>(createTrainingHistory());
   const [hasLoadedHistory, setHasLoadedHistory] = useState(false);
+  const [historyMeta, setHistoryMeta] = useState<TrainingHistoryMeta>(createTrainingHistoryMeta());
+  const [selectedActionForPlaybook, setSelectedActionForPlaybook] = useState<TrainingAction | null>(null);
+  const [selectedDiscoveryItem, setSelectedDiscoveryItem] = useState<DiscoveryItem | null>(null);
+  const [copiedQuery, setCopiedQuery] = useState<string | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
-      const stored = loadPreferences();
-      setPrefs(normalizePreferences(stored));
+      const loaded = normalizePreferences(loadPreferences());
+      setPreferences(loaded);
       setHasLoadedPreferences(true);
     }, 0);
 
     return () => window.clearTimeout(timeout);
   }, []);
 
-  const blueprint = useMemo(() => generateSignalBlueprint(prefs), [prefs]);
-  const plan = useMemo(() => generateFeedTrainingPlan(blueprint), [blueprint]);
+  const blueprint = useMemo(
+    () => generateSignalBlueprint(preferences),
+    [preferences]
+  );
+
+  const plan = useMemo(
+    () => generateFeedTrainingPlan(blueprint),
+    [blueprint]
+  );
+
   const storageKey = useMemo(() => planStorageKey(plan.days), [plan.days]);
-  const currentDay = plan.days[Math.min(dayIndex, plan.days.length - 1)] ?? plan.days[0];
-  const sortedInterests = useMemo(
-    () => [...prefs.interests].sort((a, b) => b.strength - a.strength),
-    [prefs.interests]
-  );
-  const sortedContentPreferences = useMemo(
-    () =>
-      [...(prefs.contentPreferences ?? [])].sort(
-        (a, b) => b.strength - a.strength || a.name.localeCompare(b.name)
-      ),
-    [prefs.contentPreferences]
-  );
 
   useEffect(() => {
     if (!hasLoadedPreferences) return;
+
     const timeout = window.setTimeout(() => {
       setProgress(loadTrainingProgress(storageKey));
-      const loadedHistory = loadTrainingHistory();
-      setHistory(loadedHistory);
+      setHistoryMeta(loadTrainingHistoryMeta());
       setHasLoadedHistory(true);
     }, 0);
 
@@ -198,42 +175,58 @@ export default function ProfilePage() {
   }, [hasLoadedPreferences, storageKey]);
 
   useEffect(() => {
-    if (!progress.planKey) return;
+    if (!hasLoadedHistory) return;
     saveTrainingProgress(progress);
-  }, [progress]);
+  }, [hasLoadedHistory, progress]);
 
-  // Update history when plan changes or day is accessed
-  useEffect(() => {
-    if (!hasLoadedHistory || currentDay.actions.length === 0) return;
-    const updatedHistory = ensureDayHistory(history, currentDay);
-    if (updatedHistory !== history) {
-      setHistory(updatedHistory);
-      saveTrainingHistory(updatedHistory);
-    }
-  }, [hasLoadedHistory, currentDay, history]);
+  const history = useMemo(
+    () => deriveTrainingHistory(plan, progress.completed, historyMeta),
+    [plan, progress.completed, historyMeta]
+  );
 
-  const currentDayProgress = calculateDayProgress(currentDay, progress.completed);
-  const overallPlanProgress = calculatePlanProgress(plan, progress.completed);
+  const dayProgress = useMemo(
+    () => calculateDayProgress(plan.days[dayIndex], progress.completed),
+    [plan.days, dayIndex, progress.completed]
+  );
 
-  // Training history metrics
+  const planProgress = useMemo(
+    () => calculatePlanProgress(plan, progress.completed),
+    [plan, progress.completed]
+  );
+
   const consistency = useMemo(
-    () => (hasLoadedHistory ? calculateConsistency(history) : { daysCompleted: 0, elapsedDays: 0, percentage: 0, message: "Start Day 1 to begin tracking your consistency." }),
-    [history, hasLoadedHistory]
+    () => calculateConsistency(history),
+    [history]
   );
 
   const topicsReinforced = useMemo(
-    () => (hasLoadedHistory ? calculateTopicsReinforced(history, plan.days) : []),
-    [history, plan.days, hasLoadedHistory]
+    () => calculateTopicsReinforced(plan, progress.completed),
+    [plan, progress.completed]
   );
 
   const overallProgress = useMemo(
-    () => (hasLoadedHistory ? calculateOverallProgress(history, plan.days) : { daysCompleted: 0, totalDays: 7, daysPercentage: 0, actionsCompleted: 0, totalActions: 0, actionsPercentage: 0 }),
-    [history, plan.days, hasLoadedHistory]
+    () => calculateOverallProgress(history),
+    [history]
   );
 
-  const trainingStatus = useMemo(
-    () => (hasLoadedHistory ? getTrainingStatus(history, currentDay.actions) : "NOT_STARTED"),
-    [history, currentDay.actions, hasLoadedHistory]
+  const trainingStatus = history.status;
+
+  const currentDay = plan.days[dayIndex] ?? plan.days[0];
+  const currentGroupedActions = useMemo(
+    () => groupedActions(currentDay),
+    [currentDay]
+  );
+
+  const discoveryFeed = useMemo(
+    () =>
+      generatePersonalizedDiscovery({
+        blueprint,
+        dayIndex,
+        completedActions: progress.completed,
+        platform: plan.platform,
+        plan,
+      }),
+    [blueprint, dayIndex, progress.completed, plan]
   );
 
   const toggleAction = (actionId: string) => {
@@ -241,27 +234,18 @@ export default function ProfilePage() {
       ...progress.completed,
       [actionId]: !progress.completed[actionId],
     };
-    setProgress(current => ({
+    setProgress({
       planKey: storageKey,
       completed: newCompleted,
-    }));
+    });
 
-    // Update history to track action completion and topics reinforced
-    const action = plan.days
-      .flatMap(d => d.actions)
-      .find(a => a.id === actionId);
-    
-    if (action && hasLoadedHistory) {
-      const updatedHistory = updateHistoryForAction(
-        history,
-        action,
-        !progress.completed[actionId],
-        plan.days,
-        newCompleted
-      );
-      setHistory(updatedHistory);
-      saveTrainingHistory(updatedHistory);
-    }
+    const updatedMeta = updateTrainingHistoryMeta(
+      historyMeta,
+      plan,
+      newCompleted
+    );
+    setHistoryMeta(updatedMeta);
+    saveTrainingHistoryMeta(updatedMeta);
   };
 
   const handleResetTraining = () => {
@@ -269,624 +253,737 @@ export default function ProfilePage() {
       setShowResetConfirm(true);
       return;
     }
-    
-    // Actually reset
+
     setProgress({ planKey: storageKey, completed: {} });
-    setHistory(resetTrainingHistory());
-    saveTrainingHistory(resetTrainingHistory());
+    const cleared = createTrainingHistoryMeta();
+    setHistoryMeta(cleared);
+    clearTrainingHistoryMeta();
     setDayIndex(0);
     setShowResetConfirm(false);
   };
 
-  const discoveryInterests = useMemo(
-    () => sortedInterests.slice(0, 2),
-    [sortedInterests]
-  );
+  const handleCopy = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedQuery(text);
+    setTimeout(() => setCopiedQuery(null), 2000);
+  };
 
-  const discoveryRecommendations = useMemo(
-    () =>
-      discoveryInterests.map(interest => {
-        const topic = getDiscoveryTopic(interest.id);
-        const searches = topic
-          ? topic.searches
-              .filter(query => query.specificity !== "discovery" || interest.strength > 60)
-              .slice(0, 3)
-              .map(query => ({
-                label: query.query,
-                why: generateSearchExplanation(interest, sortedContentPreferences, true),
-              }))
-          : [{ label: `${interest.name} tutorials`, why: generateSearchExplanation(interest, sortedContentPreferences, true) }];
-
-        const creators = selectCreators(
-          [interest],
-          2,
-          sortedContentPreferences,
-          dayIndex
-        );
-
-        const explore = topic
-          ? topic.subtopics.slice(0, 3).map(subtopic => ({
-              id: subtopic.id,
-              name: subtopic.name,
-            }))
-          : [];
-
-        return {
-          interest,
-          searches,
-          creators,
-          explore,
-        };
-      }),
-    [dayIndex, discoveryInterests, sortedContentPreferences]
-  );
-
-  if (!hasLoadedPreferences || !hasLoadedHistory) {
-    return (
-      <main className="min-h-screen bg-[#08050f] text-white" />
-    );
-  }
-
-  if (sortedInterests.length === 0) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-[#08050f] px-6 text-white">
-        <div className="max-w-md text-center">
-          <p className="text-xs font-medium uppercase tracking-[0.3em] text-white/35">
-            FeedSmith
-          </p>
-          <h1 className="mt-4 text-3xl font-medium">No signal built yet</h1>
-          <p className="mt-3 text-sm leading-6 text-white/55">
-            Choose the topics you want first, then FeedSmith can turn them into
-            a practical feed training plan.
-          </p>
-          <Link
-            href="/build"
-            className="mt-7 inline-flex rounded-full bg-white px-5 py-3 text-sm font-medium text-black transition hover:scale-[1.02]"
-          >
-            Build your signal
-          </Link>
-        </div>
-      </main>
-    );
-  }
+  const modalInstruction: PlatformInstruction | null = useMemo(() => {
+    if (!selectedActionForPlaybook) return null;
+    return getPlaybookInstruction(selectedActionForPlaybook, plan.platform);
+  }, [selectedActionForPlaybook, plan.platform]);
 
   return (
-    <main className="min-h-screen overflow-hidden bg-[#08050f] text-white">
-      <section className="relative px-6 py-8 md:py-12">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_22%_10%,rgba(168,85,247,0.16),transparent_34%),radial-gradient(circle_at_78%_14%,rgba(45,212,191,0.08),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.02),transparent_42%)]" />
-        <div className="relative mx-auto flex max-w-6xl flex-col gap-8">
-          <header className="flex flex-col gap-3 pb-2">
-            <p className="text-xs font-medium uppercase tracking-[0.32em] text-white/40">FeedSmith</p>
-            <h1 className="mt-1 text-3xl font-medium leading-tight md:text-5xl">Your personalized feed training plan</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-white/55">{plan.summary}</p>
-          </header>
+    <main className="min-h-screen bg-[#070709] px-4 py-8 text-white sm:px-6 lg:px-8">
+      {/* Platform Playbook Modal */}
+      <AnimatePresence>
+        {selectedActionForPlaybook && modalInstruction && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md"
+            onClick={() => setSelectedActionForPlaybook(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-xl border border-white/15 bg-[#121217] p-6 shadow-2xl"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between border-b border-white/10 pb-4">
+                <span className="rounded-full bg-violet-500/20 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-violet-300">
+                  {selectedActionForPlaybook.type} · {plan.platform}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedActionForPlaybook(null)}
+                  className="text-sm text-white/50 hover:text-white"
+                >
+                  ✕
+                </button>
+              </div>
 
-          {/* PRIMARY: Today's mission (dominant) */}
-          <section className="grid gap-6 lg:grid-cols-[1fr_360px]">
-            <div className="rounded-lg border border-white/10 bg-black/35 p-6 shadow-lg backdrop-blur-md">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-[0.3em] text-violet-200/70">Today&apos;s mission</p>
-                  <AnimatePresence mode="wait">
-                    <motion.div key={currentDay.day} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.18 }}>
-                      <h2 className="mt-3 text-2xl font-semibold md:text-4xl">Day {currentDay.day} · {currentDay.stage}</h2>
-                      <p className="mt-2 max-w-3xl text-sm leading-6 text-white/56"><span className="text-white/80">Your goal:</span> {currentDay.goal}</p>
-                    </motion.div>
-                  </AnimatePresence>
+              <h3 className="mt-4 text-base font-semibold text-white">
+                {modalInstruction.what}
+              </h3>
+              <p className="mt-2 text-xs leading-relaxed text-white/70">
+                {modalInstruction.how}
+              </p>
+
+              <div className="mt-5 space-y-4">
+                <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3.5">
+                  <h4 className="text-[11px] font-semibold uppercase tracking-wider text-emerald-400">
+                    Recommended Steps (Do)
+                  </h4>
+                  <ul className="mt-2 space-y-1.5 text-xs text-white/80">
+                    {modalInstruction.do.map((item, i) => (
+                      <li key={i} className="flex items-start gap-2">
+                        <span className="text-emerald-400">✓</span> {item}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  <button type="button" aria-label="previous day" disabled={dayIndex === 0} onClick={() => setDayIndex(i => Math.max(0, i - 1))} className="rounded-full border border-white/15 px-3 py-2 text-sm text-white/70 hover:border-white/30 disabled:opacity-30">←</button>
-                  <div className="text-center">
-                    <div className="text-xs font-medium uppercase tracking-[0.12em] text-white/38">Day {currentDay.day} of 7</div>
-                    <div className="mt-1 text-sm text-white/65">{currentDayProgress.completedCount} / {currentDay.actions.length} actions</div>
-                  </div>
-                  <button type="button" aria-label="next day" disabled={dayIndex === plan.days.length - 1} onClick={() => setDayIndex(i => Math.min(plan.days.length - 1, i + 1))} className="rounded-full border border-white/15 px-3 py-2 text-sm text-white/70 hover:border-white/30 disabled:opacity-30">→</button>
+                <div className="rounded-lg border border-rose-500/20 bg-rose-500/5 p-3.5">
+                  <h4 className="text-[11px] font-semibold uppercase tracking-wider text-rose-400">
+                    Things to Avoid (Don&apos;t)
+                  </h4>
+                  <ul className="mt-2 space-y-1.5 text-xs text-white/80">
+                    {modalInstruction.dont.map((item, i) => (
+                      <li key={i} className="flex items-start gap-2">
+                        <span className="text-rose-400">✕</span> {item}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               </div>
 
-              <div className="mt-6 grid gap-4">
-                {groupedActions(currentDay).map(([type, actions]) => (
-                  <section key={type} aria-labelledby={`section-${type.toLowerCase()}`}>
-                    <h3 id={`section-${type.toLowerCase()}`} className="mb-3 text-xs font-medium uppercase tracking-[0.28em] text-white/36">{ACTION_LABELS[type]}</h3>
-                    <div className="grid gap-3">
-                      {actions.map(action => {
-                        const complete = Boolean(progress.completed[action.id]);
-                        const detail = actionDetail(action);
-
-                        return (
-                          <label key={action.id} className={`group flex items-start gap-4 rounded-md border p-3 transition ${complete ? 'border-teal-200/30 bg-teal-200/[0.06]' : 'border-white/8 bg-white/[0.02] hover:border-white/22 hover:bg-white/[0.04]'}`}>
-                            <input aria-label={action.title} type="checkbox" checked={complete} onChange={() => toggleAction(action.id)} className="mt-1 h-5 w-5 flex-shrink-0 accent-teal-200" />
-                            <div className="min-w-0">
-                              <div className={`flex items-baseline justify-between gap-3`}> 
-                                <span className={`block text-sm font-medium ${complete ? 'text-white/50 line-through' : 'text-white'}`}>{action.title}</span>
-                                {action.type === 'WATCH' && 'count' in action && (
-                                  <span className="text-xs tabular-nums text-white/45">{action.count}</span>
-                                )}
-                              </div>
-                              <div className="mt-1 text-sm text-white/55">{action.description}</div>
-                              {detail || action.why ? (
-                                <div className="mt-2 text-xs text-white/35">{detail ? `${detail}. ` : ''}{action.why}</div>
-                              ) : null}
-                            </div>
-                          </label>
-                        );
-                      })}
-                    </div>
-                  </section>
-                ))}
+              <div className="mt-6 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setSelectedActionForPlaybook(null)}
+                  className="rounded-md bg-white/10 px-4 py-2 text-xs font-medium text-white transition hover:bg-white/20"
+                >
+                  Close Guide
+                </button>
               </div>
-            </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-            {/* Right column: compact plan nav + quick progress */}
-            <aside className="space-y-4">
-              <div className="rounded-lg border border-white/10 bg-white/[0.02] p-4">
-                <h4 className="text-xs font-medium uppercase tracking-[0.22em] text-white/38">Progress</h4>
-                <div className="mt-3">
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm font-medium">Day {currentDay.day} progress</div>
-                    <div className="text-sm tabular-nums text-white/70">{currentDayProgress.progressPercent}%</div>
-                  </div>
-                  <div className="mt-2 h-2 w-full rounded-full bg-white/8">
-                    <div className="h-full rounded-full bg-violet-400 transition-all" style={{ width: `${currentDayProgress.progressPercent}%` }} />
-                  </div>
-                </div>
-                <div className="mt-3 text-xs text-white/45">{currentDayProgress.completedCount} / {currentDayProgress.totalActions} actions complete</div>
-                <div className="mt-3 border-t border-white/8 pt-3 text-xs text-white/45">
-                  Overall plan: {overallPlanProgress.completedCount} / {overallPlanProgress.totalActions} actions complete · {overallPlanProgress.progressPercent}%
+      {/* Discovery Detail Modal */}
+      <AnimatePresence>
+        {selectedDiscoveryItem && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md"
+            onClick={() => setSelectedDiscoveryItem(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-xl border border-white/15 bg-[#121217] p-6 shadow-2xl"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between border-b border-white/10 pb-4">
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full bg-violet-500/20 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-violet-300">
+                    {selectedDiscoveryItem.type}
+                  </span>
+                  <span className="rounded-full bg-white/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white/60">
+                    {selectedDiscoveryItem.difficulty}
+                  </span>
                 </div>
                 <button
                   type="button"
-                  onClick={handleResetTraining}
-                  className={`mt-3 inline-flex rounded-full border px-3 py-2 text-[10px] uppercase tracking-[0.18em] transition ${
-                    showResetConfirm
-                      ? 'border-red-400/50 bg-red-500/10 text-red-300 hover:border-red-400/70 hover:bg-red-500/20'
-                      : 'border-white/15 text-white/60 hover:border-white/30 hover:text-white'
-                  }`}
+                  onClick={() => setSelectedDiscoveryItem(null)}
+                  className="text-sm text-white/50 hover:text-white"
                 >
-                  {showResetConfirm ? 'Confirm reset' : 'Reset training'}
+                  ✕
                 </button>
-                {showResetConfirm && (
+              </div>
+
+              <h3 className="mt-4 text-base font-semibold text-white">
+                {selectedDiscoveryItem.title}
+              </h3>
+              <p className="mt-1 text-xs text-violet-300/80">
+                {selectedDiscoveryItem.topicName} {selectedDiscoveryItem.subtopicName ? `· ${selectedDiscoveryItem.subtopicName}` : ""}
+              </p>
+
+              {/* Why This Explanation */}
+              <div className="mt-4 rounded-lg border border-violet-500/20 bg-violet-500/5 p-3.5">
+                <h4 className="text-[11px] font-semibold uppercase tracking-wider text-violet-400">
+                  Why This Recommendation?
+                </h4>
+                <p className="mt-1.5 text-xs leading-relaxed text-white/80">
+                  {selectedDiscoveryItem.reason}
+                </p>
+              </div>
+
+              {/* Playbook Guidance if present */}
+              {selectedDiscoveryItem.guidance && (
+                <div className="mt-4 space-y-3">
+                  <div className="rounded-lg border border-white/10 bg-white/[0.02] p-3.5">
+                    <h4 className="text-[11px] font-semibold uppercase tracking-wider text-white/40">
+                      What to Do
+                    </h4>
+                    <p className="mt-1 text-xs text-white/80">
+                      {selectedDiscoveryItem.guidance.how}
+                    </p>
+                  </div>
+
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3">
+                      <div className="text-[10px] font-semibold uppercase tracking-wider text-emerald-400">Do</div>
+                      <ul className="mt-1 space-y-1 text-[11px] text-white/75">
+                        {selectedDiscoveryItem.guidance.do.map((item, i) => (
+                          <li key={i}>• {item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div className="rounded-lg border border-rose-500/20 bg-rose-500/5 p-3">
+                      <div className="text-[10px] font-semibold uppercase tracking-wider text-rose-400">Don&apos;t</div>
+                      <ul className="mt-1 space-y-1 text-[11px] text-white/75">
+                        {selectedDiscoveryItem.guidance.dont.map((item, i) => (
+                          <li key={i}>• {item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Action buttons */}
+              <div className="mt-6 flex items-center justify-between border-t border-white/10 pt-4">
+                {selectedDiscoveryItem.searchQuery ? (
                   <button
                     type="button"
-                    onClick={() => setShowResetConfirm(false)}
-                    className="mt-2 inline-flex rounded-full border border-white/15 px-3 py-2 text-[10px] uppercase tracking-[0.18em] text-white/60 transition hover:border-white/30 hover:text-white"
+                    onClick={() => handleCopy(selectedDiscoveryItem.searchQuery!)}
+                    className="rounded-md border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-white/10"
                   >
-                    Cancel
+                    {copiedQuery === selectedDiscoveryItem.searchQuery ? "✓ Copied Query" : "📋 Copy Search Query"}
+                  </button>
+                ) : <div />}
+
+                {selectedDiscoveryItem.actionId && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (selectedDiscoveryItem.actionId) {
+                        toggleAction(selectedDiscoveryItem.actionId);
+                        setSelectedDiscoveryItem({
+                          ...selectedDiscoveryItem,
+                          completed: !selectedDiscoveryItem.completed,
+                        });
+                      }
+                    }}
+                    className={`rounded-md px-4 py-1.5 text-xs font-medium transition ${
+                      selectedDiscoveryItem.completed
+                        ? "bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30"
+                        : "bg-violet-600 text-white hover:bg-violet-500"
+                    }`}
+                  >
+                    {selectedDiscoveryItem.completed ? "✓ Marked Complete" : "Mark Complete"}
                   </button>
                 )}
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-              <div className="rounded-lg border border-white/10 bg-white/[0.02] p-3">
-                <h4 className="text-xs font-medium uppercase tracking-[0.22em] text-white/38">7‑day plan</h4>
-                <div className="mt-3 grid grid-cols-7 gap-2">
-                  {plan.days.map((d: FeedTrainingDay, i: number) => (
-                    <button key={d.day} onClick={() => setDayIndex(i)} aria-current={i === dayIndex} className={`rounded-md py-2 text-center text-xs font-medium transition ${i === dayIndex ? 'bg-violet-300/20 border border-violet-300/40 text-white' : 'bg-white/[0.02] border border-white/6 text-white/60 hover:bg-white/[0.035]'}`}>
-                      <div className="tabular-nums">{String(d.day).padStart(2, '0')}</div>
-                      <div className="mt-1 text-[10px] text-white/50 leading-4">{d.stage}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="rounded-lg border border-white/10 bg-white/[0.02] p-4">
-                <h4 className="text-xs font-medium uppercase tracking-[0.22em] text-white/38">Your signal</h4>
-                <div className="mt-3 text-sm">
-                  {sortedInterests.slice(0,4).map(i => (
-                    <div key={i.id} className="flex items-center justify-between py-1">
-                      <div className="text-sm text-white/75">{i.name}</div>
-                      <div className="tabular-nums text-white">{i.strength}</div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Key Areas from Discovery Library */}
-                {sortedInterests.length > 0 && (
-                  <div className="mt-3 border-t border-white/8 pt-3">
-                    <h5 className="text-xs font-medium uppercase tracking-[0.15em] text-white/25 mb-2">Key areas to explore</h5>
-                    <div className="space-y-2">
-                      {sortedInterests.slice(0, 2).map(interest => {
-                        const subtopics = getSubtopicsList(interest.id, 2);
-                        if (subtopics.length === 0) return null;
-                        return (
-                          <div key={interest.id} className="text-xs">
-                            <div className="text-white/50 mb-1">{interest.name}</div>
-                            <div className="flex flex-wrap gap-1">
-                              {subtopics.map(st => (
-                                <div
-                                  key={st.id}
-                                  className="rounded-full bg-white/[0.05] px-2 py-0.5 text-white/40 text-[10px]"
-                                >
-                                  {st.name}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {sortedContentPreferences.length > 0 && (
-                  <div className="mt-3 text-xs text-white/45">
-                    {sortedContentPreferences.slice(0,3).map(c => (
-                      <div key={c.id} className="flex items-center justify-between py-0.5"><div>{c.name}</div><div className="tabular-nums">{c.strength}</div></div>
-                    ))}
-                  </div>
-                )}
-                {prefs.filters && prefs.filters.length > 0 && (
-                  <div className="mt-3 text-xs text-white/45">
-                    <div className="font-medium text-white/70 mb-1">Suppress</div>
-                    <div className="flex flex-wrap gap-2">
-                      {prefs.filters.map(f => (
-                        <div key={f} className="rounded-full bg-white/[0.03] px-2 py-1 text-xs">{f}</div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </aside>
-          </section>
-
-          {/* Training Progress Section */}
-          <section className="grid gap-4 lg:grid-cols-3">
-            {/* Overall Training Status */}
-            <div className="rounded-lg border border-white/10 bg-white/[0.02] p-4">
-              <h3 className="text-xs font-medium uppercase tracking-[0.28em] text-white/35">
-                Training Status
-              </h3>
-              <div className="mt-4 space-y-3">
-                <div>
-                  <div className="text-sm font-medium text-white">
-                    Day {history.currentDay} {history.currentDay <= 7 ? "of 7" : ""}
-                  </div>
-                  {history.trainingComplete ? (
-                    <div className="mt-1 text-xs text-green-300/80">✓ Training Complete</div>
-                  ) : history.currentDay <= 7 ? (
-                    <div className="mt-1 text-xs text-white/55">
-                      {trainingStatus === "DAY_COMPLETE" ? "✓ Complete" : "In progress"}
-                    </div>
-                  ) : null}
-                </div>
-                <div className="border-t border-white/8 pt-3">
-                  <div className="text-xs text-white/50">
-                    {overallProgress.daysCompleted} / {overallProgress.totalDays} days completed
-                  </div>
-                  <div className="mt-2 h-2 w-full rounded-full bg-white/8">
-                    <div
-                      className="h-full rounded-full bg-emerald-400 transition-all"
-                      style={{ width: `${overallProgress.daysPercentage}%` }}
-                    />
-                  </div>
-                </div>
-                <div className="border-t border-white/8 pt-3">
-                  <div className="text-xs text-white/50">
-                    {overallProgress.actionsCompleted} / {overallProgress.totalActions} actions
-                  </div>
-                  <div className="mt-2 h-2 w-full rounded-full bg-white/8">
-                    <div
-                      className="h-full rounded-full bg-violet-400 transition-all"
-                      style={{ width: `${overallProgress.actionsPercentage}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
+      <div className="mx-auto max-w-6xl space-y-8">
+        {/* Navigation & Header */}
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-6">
+          <div>
+            <div className="flex items-center gap-3">
+              <Link
+                href="/build"
+                className="text-xs uppercase tracking-wider text-white/50 transition hover:text-white"
+              >
+                ← Back to Blueprint
+              </Link>
+              <span className="text-white/20">|</span>
+              <span className="text-xs uppercase tracking-wider text-violet-400">
+                Feed Training Engine
+              </span>
             </div>
+            <h1 className="mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+              Signal Blueprint & Discovery Plan
+            </h1>
+          </div>
 
-            {/* Training Consistency */}
-            <div className="rounded-lg border border-white/10 bg-white/[0.02] p-4">
-              <h3 className="text-xs font-medium uppercase tracking-[0.28em] text-white/35">
-                Consistency
-              </h3>
-              <div className="mt-4">
-                {consistency.daysCompleted === 0 ? (
-                  <div className="text-xs leading-5 text-white/50">
-                    {consistency.message}
-                  </div>
-                ) : (
-                  <>
-                    <div className="text-2xl font-medium text-white">
-                      {consistency.percentage}%
-                    </div>
-                    <div className="mt-2 text-xs text-white/50">
-                      {consistency.message}
-                    </div>
-                  </>
-                )}
-              </div>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/feed"
+              className="rounded-md border border-white/15 bg-white/5 px-3.5 py-1.5 text-xs font-medium text-white transition hover:bg-white/10"
+            >
+              Preview Feed →
+            </Link>
+            <button
+              type="button"
+              onClick={handleResetTraining}
+              className={`rounded-md border px-3 py-1.5 text-xs font-medium transition ${
+                showResetConfirm
+                  ? "border-rose-500/60 bg-rose-500/20 text-rose-300"
+                  : "border-white/10 text-white/50 hover:border-white/20 hover:text-white"
+              }`}
+            >
+              {showResetConfirm ? "Confirm Reset" : "Reset Progress"}
+            </button>
+          </div>
+        </div>
+
+        {/* Top Blueprint Summary */}
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="rounded-xl border border-white/10 bg-white/[0.02] p-5 lg:col-span-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium uppercase tracking-wider text-white/40">
+                Signal Summary
+              </span>
+              <span className="text-xs text-white/50">
+                Overall Strength: <span className="font-semibold text-white">{blueprint.overallStrength}%</span>
+              </span>
             </div>
+            <p className="mt-3 text-sm leading-relaxed text-white/80">
+              {blueprint.summary}
+            </p>
 
-            {/* Topics Reinforced Summary */}
-            <div className="rounded-lg border border-white/10 bg-white/[0.02] p-4">
-              <h3 className="text-xs font-medium uppercase tracking-[0.28em] text-white/35">
-                Topics Reinforced
-              </h3>
-              <div className="mt-4 space-y-2">
-                {topicsReinforced.length === 0 ? (
-                  <div className="text-xs text-white/50">
-                    Complete actions to track topic progress.
-                  </div>
-                ) : (
-                  topicsReinforced.slice(0, 3).map(topic => (
-                    <div key={topic.topic} className="flex items-center justify-between">
-                      <div className="text-xs text-white/70">{topic.displayName}</div>
-                      <div className="text-xs tabular-nums text-white/50">
-                        {topic.actionCount}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-              {topicsReinforced.length > 3 && (
-                <div className="mt-3 border-t border-white/8 pt-3 text-[10px] text-white/40">
-                  +{topicsReinforced.length - 3} more topics
-                </div>
-              )}
-            </div>
-          </section>
-
-          {/* Signal Progress - Actions by Topic */}
-          {topicsReinforced.length > 0 && (
-            <section className="rounded-lg border border-white/10 bg-white/[0.02] p-4">
-              <h3 className="text-xs font-medium uppercase tracking-[0.28em] text-white/35">
-                Signal Progress · FeedSmith Activity
-              </h3>
-              <div className="mt-4 space-y-3">
-                {topicsReinforced.map(topic => {
-                  const maxActions = Math.max(...topicsReinforced.map(t => t.actionCount), 1);
-                  const percentage = Math.round((topic.actionCount / maxActions) * 100);
-                  return (
-                    <div key={topic.topic}>
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="text-sm text-white/80">{topic.displayName}</div>
-                        <div className="text-xs tabular-nums text-white/50">
-                          {topic.actionCount} action{topic.actionCount !== 1 ? "s" : ""}
-                        </div>
-                      </div>
-                      <div className="h-2 w-full rounded-full bg-white/8">
-                        <div
-                          className="h-full rounded-full bg-gradient-to-r from-violet-400 to-cyan-400 transition-all"
-                          style={{ width: `${percentage}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="mt-3 border-t border-white/8 pt-3 text-[11px] leading-5 text-white/40">
-                You've reinforced these interests through FeedSmith training actions. This is not an official platform metric.
-              </div>
-            </section>
-          )}
-
-          {/* Training Timeline */}
-          <section>
-            <h2 className="text-xs font-medium uppercase tracking-[0.28em] text-white/38">
-              7-day Training Timeline
-            </h2>
-            <div className="mt-4 grid gap-2 sm:grid-cols-7">
-              {plan.days.map((day: FeedTrainingDay) => {
-                const dayHistory = history.dailyHistory.find(d => d.day === day.day);
-                const isCurrentDay = history.currentDay === day.day;
-                const isCompleted = dayHistory?.completedAt !== undefined;
-                const isFuture = day.day > history.dailyHistory.length;
-
-                return (
-                  <div
-                    key={day.day}
-                    className={`rounded-md border p-3 text-center transition ${
-                      isCompleted
-                        ? "border-emerald-200/30 bg-emerald-200/[0.06]"
-                        : isCurrentDay
-                          ? "border-violet-200/60 bg-violet-300/[0.08]"
-                          : isFuture
-                            ? "border-white/6 bg-white/[0.01]"
-                            : "border-white/10 bg-white/[0.02]"
-                    }`}
-                  >
-                    <div className="text-xs font-medium text-white/60">
-                      {isCompleted ? "✓" : isCurrentDay ? "●" : "○"} Day {day.day}
-                    </div>
-                    <div className="mt-1 text-[10px] font-medium text-white/70">
-                      {day.stage}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-
-          {/* Training History Detail */}
-          {history.dailyHistory.length > 0 && (
-            <section>
-              <h2 className="text-xs font-medium uppercase tracking-[0.28em] text-white/38">
-                Training History
-              </h2>
-              <div className="mt-4 space-y-2">
-                {history.dailyHistory.map(dayRecord => {
-                  const dayData = plan.days.find(d => d.day === dayRecord.day);
-                  const isCompleted = dayRecord.completedAt !== undefined;
-
-                  return (
-                    <div
-                      key={dayRecord.day}
-                      className={`rounded-md border p-3 transition ${
-                        isCompleted
-                          ? "border-emerald-200/20 bg-emerald-200/[0.04]"
-                          : "border-white/8 bg-white/[0.02]"
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-white">
-                              Day {dayRecord.day}
-                            </span>
-                            <span className="text-xs text-white/50">
-                              {dayRecord.stage}
-                            </span>
-                          </div>
-                          <div className="mt-1 text-xs text-white/40">
-                            {isCompleted ? "✓ Complete" : "In progress"} ·{" "}
-                            {dayRecord.completedActions} / {dayRecord.totalActions} actions
-                          </div>
-                        </div>
-                        <div className="flex-shrink-0">
-                          <div className="h-8 w-12 rounded-full bg-white/5">
-                            <div
-                              className={`h-full rounded-full transition-all ${
-                                isCompleted ? "bg-emerald-400" : "bg-violet-400"
-                              }`}
-                              style={{
-                                width: `${
-                                  dayRecord.totalActions > 0
-                                    ? Math.round(
-                                        (dayRecord.completedActions /
-                                          dayRecord.totalActions) *
-                                          100
-                                      )
-                                    : 0
-                                }%`,
-                              }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
-          )}
-
-          {/* Empty State */}
-          {history.dailyHistory.length === 0 && (
-            <section className="rounded-lg border border-white/10 bg-white/[0.02] p-8 text-center">
-              <p className="text-xs font-medium uppercase tracking-[0.3em] text-white/35">
-                Training Progress
-              </p>
-              <h2 className="mt-3 text-lg font-medium text-white">
-                You haven't started yet
-              </h2>
-              <p className="mt-2 text-sm leading-6 text-white/55">
-                Complete your first action on today's mission to begin tracking your progress and building your training history.
-              </p>
-            </section>
-          )}
-
-          {/* Training Complete State */}
-          {history.trainingComplete && (
-            <section className="rounded-lg border border-emerald-200/30 bg-emerald-200/[0.06] p-6">
-              <p className="text-xs font-medium uppercase tracking-[0.3em] text-emerald-300/70">
-                Training Complete
-              </p>
-              <h2 className="mt-3 text-2xl font-medium text-white">
-                You've completed the FeedSmith training plan
-              </h2>
-              <p className="mt-2 text-sm leading-6 text-white/70">
-                You've completed 7 days of intentional signal training. You've reinforced your core interests through {overallProgress.actionsCompleted} completed actions.
-              </p>
-              {topicsReinforced.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-emerald-200/20">
-                  <p className="text-xs text-white/50">Most reinforced topics:</p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {topicsReinforced.slice(0, 3).map(topic => (
-                      <div
-                        key={topic.topic}
-                        className="rounded-full bg-emerald-200/[0.1] px-3 py-1 text-xs text-white/70"
-                      >
-                        {topic.displayName}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              <p className="mt-4 text-xs leading-5 text-white/40">
-                FeedSmith measured your intentional activity plan, not changes to third-party recommendation algorithms.
-              </p>
-            </section>
-          )}
-
-          {/* Discovery layer: Curated searches, creators, and subtopics */}
-          <section className="grid gap-4 lg:grid-cols-3">
-            <div className="rounded-lg border border-white/10 bg-white/[0.02] p-4">
-              <h3 className="text-xs font-medium uppercase tracking-[0.28em] text-white/35">Search</h3>
-              <div className="mt-4 space-y-3">
-                {discoveryRecommendations.flatMap(({ interest, searches }) =>
-                  searches.map((item, index) => (
-                    <div key={`${interest.id}-search-${index}`} className="rounded-md border border-white/8 bg-black/20 p-3">
-                      <div className="text-sm font-medium text-white">{item.label}</div>
-                      <button
-                        type="button"
-                        className="mt-2 inline-flex rounded-full border border-white/10 px-2 py-1 text-[10px] uppercase tracking-[0.16em] text-white/50 hover:border-white/25"
-                      >
-                        Search suggestion
-                      </button>
-                      <div className="mt-2 text-[11px] leading-5 text-white/40">
-                        Why this? {item.why}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            <div className="rounded-lg border border-white/10 bg-white/[0.02] p-4">
-              <h3 className="text-xs font-medium uppercase tracking-[0.28em] text-white/35">Who to follow</h3>
-              <div className="mt-4 space-y-3">
-                {discoveryRecommendations.flatMap(({ interest, creators }) =>
-                  creators.map(creator => (
-                    <div key={`${interest.id}-${creator.id}`} className="rounded-md border border-white/8 bg-black/20 p-3">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="text-sm font-medium text-white">{creator.name}</div>
-                        <span className="text-[10px] uppercase tracking-[0.16em] text-white/45">{creator.platform}</span>
-                      </div>
-                      <div className="mt-1 text-[11px] text-white/45">{creator.topics.join(" · ") || interest.name}</div>
-                      <div className="mt-2 text-[11px] leading-5 text-white/40">
-                        Why this? {generateCreatorExplanation(creator, [interest])}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            <div className="rounded-lg border border-white/10 bg-white/[0.02] p-4">
-              <h3 className="text-xs font-medium uppercase tracking-[0.28em] text-white/35">Explore</h3>
-              <div className="mt-4 flex flex-wrap gap-2">
-                {discoveryRecommendations.flatMap(({ interest, explore }) =>
-                  explore.map(subtopic => (
-                    <div
-                      key={`${interest.id}-${subtopic.id}`}
-                      className="rounded-full border border-white/10 bg-white/[0.025] px-2.5 py-1 text-[11px] text-white/60"
-                    >
-                      {subtopic.name}
-                    </div>
-                  ))
-                )}
-              </div>
-              <div className="mt-4 text-[11px] leading-5 text-white/40">
-                These are the subtopics most aligned with your current signal and selected content style.
-              </div>
-            </div>
-          </section>
-
-          {/* 7-day detail grid (expanded) */}
-          <section>
-            <h2 className="text-xs font-medium uppercase tracking-[0.28em] text-white/38">Plan overview</h2>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-7">
-              {plan.days.map((day: FeedTrainingDay, index: number) => (
-                <button key={day.day} type="button" onClick={() => setDayIndex(index)} className={`rounded-md border p-4 text-left transition ${index === dayIndex ? 'border-violet-200/60 bg-violet-300/[0.08]' : 'border-white/10 bg-white/[0.012] hover:border-white/25'}`}>
-                  <span className="block text-xs uppercase tracking-[0.2em] text-white/40">{String(day.day).padStart(2,'0')}</span>
-                  <span className="mt-2 block text-sm font-medium text-white">{day.stage}</span>
-                  <span className="mt-1 block text-xs text-white/50">{day.goal}</span>
-                </button>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {blueprint.primaryInterests.map(interest => (
+                <span
+                  key={interest.id}
+                  className="rounded-full border border-violet-500/30 bg-violet-500/10 px-3 py-1 text-xs text-violet-200"
+                >
+                  {interest.name} ({interest.strength}%)
+                </span>
+              ))}
+              {blueprint.secondaryInterests.map(interest => (
+                <span
+                  key={interest.id}
+                  className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/60"
+                >
+                  {interest.name} ({interest.strength}%)
+                </span>
+              ))}
+              {blueprint.suppressed.map(filter => (
+                <span
+                  key={filter}
+                  className="rounded-full border border-rose-500/30 bg-rose-500/10 px-3 py-1 text-xs text-rose-300"
+                >
+                  Avoid: {filter}
+                </span>
               ))}
             </div>
-          </section>
+          </div>
+
+          {/* Progress Card */}
+          <div className="rounded-xl border border-white/10 bg-white/[0.02] p-5">
+            <span className="text-xs font-medium uppercase tracking-wider text-white/40">
+              Training Progress
+            </span>
+            <div className="mt-4 flex items-baseline justify-between">
+              <div className="text-3xl font-bold text-white">
+                {planProgress.progressPercent}%
+              </div>
+              <div className="text-xs text-white/50">
+                {planProgress.completedCount} of {planProgress.totalActions} actions
+              </div>
+            </div>
+
+            <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-white/10">
+              <div
+                className="h-full bg-violet-500 transition-all duration-300"
+                style={{ width: `${planProgress.progressPercent}%` }}
+              />
+            </div>
+
+            <div className="mt-4 border-t border-white/10 pt-3 text-xs text-white/60">
+              Status: <span className="font-medium text-white">{trainingStatus.replace(/_/g, " ")}</span>
+            </div>
+          </div>
         </div>
-      </section>
+
+        {/* 7-Day Day Selector */}
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+          {plan.days.map((day, idx) => {
+            const isSelected = idx === dayIndex;
+            const dayMeta = history.dailyHistory.find((d: DailyHistory) => d.day === day.day);
+            const isComplete = dayMeta?.completed;
+
+            return (
+              <button
+                key={day.day}
+                type="button"
+                onClick={() => setDayIndex(idx)}
+                className={`flex flex-col justify-between rounded-xl border p-3.5 text-left transition ${
+                  isSelected
+                    ? "border-violet-400 bg-violet-500/10"
+                    : isComplete
+                    ? "border-emerald-500/30 bg-emerald-500/5 hover:border-emerald-500/50"
+                    : "border-white/10 bg-white/[0.02] hover:border-white/20"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-semibold text-white/50">
+                    Day {day.day}
+                  </span>
+                  {isComplete && (
+                    <span className="text-xs text-emerald-400">✓</span>
+                  )}
+                </div>
+                <div className="mt-2 text-xs font-semibold text-white">
+                  {day.stage}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Daily Mission Actions */}
+        <div className="rounded-xl border border-white/10 bg-white/[0.02] p-6">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-4">
+            <div>
+              <span className="text-xs font-semibold uppercase tracking-wider text-violet-400">
+                Day {currentDay.day} Mission · {currentDay.stage}
+              </span>
+              <h2 className="mt-1 text-lg font-semibold text-white">
+                {currentDay.goal}
+              </h2>
+            </div>
+            <div className="text-xs text-white/50">
+              {dayProgress.completedCount} of {dayProgress.totalActions} completed ({dayProgress.progressPercent}%)
+            </div>
+          </div>
+
+          <div className="mt-6 space-y-6">
+            {currentGroupedActions.map(([type, actions]) => (
+              <div key={type} className="space-y-3">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-white/40">
+                  {ACTION_LABELS[type]} ({actions.length})
+                </h3>
+
+                <div className="space-y-2.5">
+                  {actions.map(action => {
+                    const isCompleted = Boolean(progress.completed[action.id]);
+                    const detail = actionDetail(action);
+                    const isActionable = isActionableTrainingAction(action);
+
+                    return (
+                      <div
+                        key={action.id}
+                        className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3.5 transition ${
+                          isCompleted
+                            ? "border-emerald-500/25 bg-emerald-500/5 text-white/60"
+                            : "border-white/10 bg-black/20 hover:border-white/20"
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          {isActionable && (
+                            <button
+                              type="button"
+                              onClick={() => toggleAction(action.id)}
+                              className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition ${
+                                isCompleted
+                                  ? "border-emerald-500 bg-emerald-500 text-black"
+                                  : "border-white/30 hover:border-white"
+                              }`}
+                            >
+                              {isCompleted && <span className="text-[10px] font-bold">✓</span>}
+                            </button>
+                          )}
+                          <div>
+                            <div className="text-xs font-semibold text-white">
+                              {action.title}
+                            </div>
+                            <div className="mt-0.5 text-[11px] text-white/60">
+                              {action.description}
+                            </div>
+                            {detail && (
+                              <div className="mt-1 text-[10px] text-violet-300/80">
+                                {detail}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedActionForPlaybook(action)}
+                            className="rounded-md border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] text-white/70 hover:bg-white/10 hover:text-white"
+                          >
+                            Playbook Guide
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Personalized Discovery Section */}
+        <div className="rounded-xl border border-violet-500/20 bg-gradient-to-b from-violet-950/10 to-transparent p-6">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="rounded-full bg-violet-500/20 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-violet-300">
+                  {discoveryFeed.stageTitle}
+                </span>
+                <span className="text-xs text-white/40">Personalized Discovery Engine</span>
+              </div>
+              <h2 className="mt-1.5 text-lg font-semibold text-white">
+                {discoveryFeed.stageGoal}
+              </h2>
+            </div>
+            <span className="text-xs text-white/40">
+              Stage: <span className="font-semibold uppercase text-violet-300">{discoveryFeed.stage}</span>
+            </span>
+          </div>
+
+          <div className="mt-6 grid gap-6 lg:grid-cols-3">
+            {/* Search Paths */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-white/50">
+                  Curated Search Paths
+                </h3>
+                <span className="text-[10px] text-violet-300/70">Broad → Specific → Discovery</span>
+              </div>
+
+              <div className="space-y-2.5">
+                {discoveryFeed.searchPaths.length === 0 ? (
+                  <div className="rounded-lg border border-white/5 p-4 text-xs text-white/40">
+                    No search queries available for this stage.
+                  </div>
+                ) : (
+                  discoveryFeed.searchPaths.map(item => (
+                    <div
+                      key={item.id}
+                      className="group rounded-lg border border-white/10 bg-black/25 p-3.5 transition hover:border-violet-500/40"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <span className="text-[10px] font-semibold uppercase tracking-wider text-violet-400">
+                            {item.difficulty} · {item.topicName}
+                          </span>
+                          <div className="mt-0.5 text-xs font-medium text-white">
+                            &ldquo;{item.title}&rdquo;
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedDiscoveryItem(item)}
+                          className="shrink-0 text-[11px] text-violet-300 hover:text-white"
+                        >
+                          Inspect →
+                        </button>
+                      </div>
+
+                      <p className="mt-2 text-[11px] leading-relaxed text-white/60">
+                        {item.reason}
+                      </p>
+
+                      <div className="mt-3 flex items-center justify-between border-t border-white/5 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => handleCopy(item.searchQuery || item.title)}
+                          className="text-[10px] text-white/40 hover:text-white"
+                        >
+                          {copiedQuery === (item.searchQuery || item.title) ? "✓ Copied" : "📋 Copy Search"}
+                        </button>
+
+                        {item.actionId && (
+                          <button
+                            type="button"
+                            onClick={() => toggleAction(item.actionId!)}
+                            className={`text-[10px] font-medium ${
+                              item.completed ? "text-emerald-400" : "text-white/50 hover:text-white"
+                            }`}
+                          >
+                            {item.completed ? "✓ Completed" : "Mark Done"}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Who to Follow / Creators */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-white/50">
+                  Who to Follow
+                </h3>
+                <span className="text-[10px] text-white/40">Reinforces Target Topics</span>
+              </div>
+
+              <div className="space-y-2.5">
+                {discoveryFeed.curatedCreators.length === 0 ? (
+                  <div className="rounded-lg border border-white/5 p-4 text-xs text-white/40">
+                    No creators cataloged for current topics.
+                  </div>
+                ) : (
+                  discoveryFeed.curatedCreators.map(item => (
+                    <div
+                      key={item.id}
+                      className="group rounded-lg border border-white/10 bg-black/25 p-3.5 transition hover:border-violet-500/40"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <div className="text-xs font-semibold text-white">
+                            {item.title}
+                          </div>
+                          <span className="text-[10px] text-white/40">
+                            {item.creator?.platform ?? "Platform"} · {item.creator?.topics.join(", ")}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedDiscoveryItem(item)}
+                          className="shrink-0 text-[11px] text-violet-300 hover:text-white"
+                        >
+                          Inspect →
+                        </button>
+                      </div>
+
+                      <p className="mt-2 text-[11px] leading-relaxed text-white/60">
+                        {item.reason}
+                      </p>
+
+                      <div className="mt-3 flex items-center justify-between border-t border-white/5 pt-2">
+                        <span className="text-[10px] text-violet-300/80">
+                          Aligns with your signals
+                        </span>
+                        {item.actionId && (
+                          <button
+                            type="button"
+                            onClick={() => toggleAction(item.actionId!)}
+                            className={`text-[10px] font-medium ${
+                              item.completed ? "text-emerald-400" : "text-white/50 hover:text-white"
+                            }`}
+                          >
+                            {item.completed ? "✓ Followed" : "Mark Followed"}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Subtopics & Crossover */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-white/50">
+                  Crossover & Subtopic Radar
+                </h3>
+                <span className="text-[10px] text-violet-300/70">Topic Expansion</span>
+              </div>
+
+              <div className="space-y-2.5">
+                {discoveryFeed.crossoverSuggestions.map(item => (
+                  <div
+                    key={item.id}
+                    className="rounded-lg border border-violet-500/30 bg-violet-500/10 p-3.5"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-violet-300">
+                        Signal Crossover
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedDiscoveryItem(item)}
+                        className="text-[11px] text-violet-200 hover:text-white"
+                      >
+                        Inspect →
+                      </button>
+                    </div>
+                    <div className="mt-1 text-xs font-semibold text-white">
+                      {item.title}
+                    </div>
+                    <p className="mt-1 text-[11px] text-white/70">
+                      {item.reason}
+                    </p>
+                  </div>
+                ))}
+
+                {discoveryFeed.formatRecommendations.map(item => (
+                  <div
+                    key={item.id}
+                    className="rounded-lg border border-white/10 bg-black/25 p-3.5"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-white/40">
+                        Format Bias
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedDiscoveryItem(item)}
+                        className="text-[11px] text-violet-300 hover:text-white"
+                      >
+                        Inspect →
+                      </button>
+                    </div>
+                    <div className="mt-1 text-xs font-medium text-white">
+                      {item.title}
+                    </div>
+                    <p className="mt-1 text-[11px] text-white/60">
+                      {item.reason}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Training History Meta / Consistency */}
+        <div className="rounded-xl border border-white/10 bg-white/[0.02] p-6">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-white/40">
+            Training History & Signal Reinforcement
+          </h2>
+
+          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-lg border border-white/10 bg-black/20 p-4">
+              <span className="text-[11px] text-white/50">Days Completed</span>
+              <div className="mt-1 text-2xl font-bold text-white">
+                {overallProgress.daysCompleted} / {overallProgress.totalDays}
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-white/10 bg-black/20 p-4">
+              <span className="text-[11px] text-white/50">Actions Completed</span>
+              <div className="mt-1 text-2xl font-bold text-white">
+                {overallProgress.actionsCompleted} / {overallProgress.totalActions}
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-white/10 bg-black/20 p-4">
+              <span className="text-[11px] text-white/50">Consistency Score</span>
+              <div className="mt-1 text-2xl font-bold text-white">
+                {consistency.percentage}%
+              </div>
+              <p className="mt-1 text-[10px] text-white/40">{consistency.message}</p>
+            </div>
+
+            <div className="rounded-lg border border-white/10 bg-black/20 p-4">
+              <span className="text-[11px] text-white/50">Topics Reinforced</span>
+              <div className="mt-1 text-2xl font-bold text-white">
+                {topicsReinforced.length}
+              </div>
+            </div>
+          </div>
+
+          {topicsReinforced.length > 0 && (
+            <div className="mt-4 border-t border-white/10 pt-4">
+              <div className="text-[11px] font-semibold text-white/50">Reinforced Topic Activity</div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {topicsReinforced.map(tr => (
+                  <span
+                    key={tr.topic}
+                    className="rounded-md border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-white/75"
+                  >
+                    {tr.displayName}: <span className="font-semibold text-violet-300">{tr.actionCount} actions</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
     </main>
   );
 }
