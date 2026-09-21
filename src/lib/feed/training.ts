@@ -1,4 +1,5 @@
 import {
+  AdaptiveSignalState,
   ContentPreference,
   CreatorRecommendation,
   FeedPreference,
@@ -18,6 +19,7 @@ import {
   generateSearchExplanation,
   generateCreatorExplanation,
 } from "./discoverySelection";
+import { getDiscoveryTopic } from "./discoveryEngine";
 import { isActionableTrainingAction } from "./history";
 
 const DEFAULT_PLATFORM: TrainingPlatform = "instagram";
@@ -181,20 +183,32 @@ function allocateCounts(
 }
 
 /**
- * Select a search query for an interest on a given day.
- *
- * Uses the Discovery Library to provide personalized search suggestions
- * based on user's content preferences and the training day stage.
- *
- * Falls back to generic suggestions if discovery data unavailable.
+ * Select a search query for an interest on a given day, respecting adaptive subtopic preferences.
  */
 function searchQueryFor(
   interest: FeedPreference,
   dayIndex: number,
-  contentPreferences: ContentPreference[]
+  contentPreferences: ContentPreference[],
+  subtopicDeltas: Record<string, number> = {}
 ): string {
-  // Try discovery-based selection first
+  // Try discovery-based selection first, guided by subtopic deltas
   try {
+    const topic = getDiscoveryTopic(interest.id);
+    const rawQueries = topic?.searches ?? [];
+
+    // If we have subtopic preferences, try to find a matching query
+    if (Object.keys(subtopicDeltas).length > 0 && rawQueries.length > 0) {
+      // Find queries for boosted subtopics
+      const boostedQueries = rawQueries.filter(q => {
+        if (!q.subtopic) return false;
+        return (subtopicDeltas[q.subtopic] ?? 0) > 0;
+      });
+
+      if (boostedQueries.length > 0) {
+        return boostedQueries[dayIndex % boostedQueries.length].query;
+      }
+    }
+
     return selectSearchQuery(interest, dayIndex, contentPreferences);
   } catch {
     // Fallback to legacy suggestions
@@ -287,7 +301,8 @@ function buildWatchActions(
 function buildSearchActions(
   interests: FeedPreference[],
   contentPreferences: ContentPreference[],
-  dayIndex: number
+  dayIndex: number,
+  subtopicDeltas: Record<string, number> = {}
 ): TrainingAction[] {
   // Vary search count by day
   let searchCount: number;
@@ -298,9 +313,28 @@ function buildSearchActions(
   searchCount = Math.min(searchCount, interests.length);
 
   return interests.slice(0, searchCount).map((interest, index) => {
-    const query = searchQueryFor(interest, dayIndex, contentPreferences);
+    const query = searchQueryFor(interest, dayIndex, contentPreferences, subtopicDeltas);
     const isTopInterest = index === 0;
-    const explanation = generateSearchExplanation(interest, contentPreferences, isTopInterest);
+
+    const topicObj = getDiscoveryTopic(interest.id);
+    const matchedSearch = topicObj?.searches.find(
+      s => s.query.toLowerCase() === query.toLowerCase()
+    );
+    const subtopicObj = matchedSearch?.subtopic
+      ? topicObj?.subtopics.find(s => s.id === matchedSearch.subtopic)
+      : undefined;
+    const subtopicName = subtopicObj?.name;
+    const subtopicDelta = matchedSearch?.subtopic
+      ? subtopicDeltas[matchedSearch.subtopic]
+      : undefined;
+
+    const explanation = generateSearchExplanation(
+      interest,
+      contentPreferences,
+      isTopInterest,
+      subtopicName,
+      subtopicDelta
+    );
 
     return {
       id: `day-${dayIndex + 1}-search-${actionSlug(query)}`,
@@ -308,6 +342,8 @@ function buildSearchActions(
       title: `Search "${query}"`,
       topic: interest.id,
       topicName: interest.name,
+      subtopicId: matchedSearch?.subtopic,
+      subtopicName,
       query,
       platform: DEFAULT_PLATFORM,
       description: `Search "${query}" and choose results that genuinely match what you want more of.`,
@@ -323,19 +359,13 @@ function buildSearchActions(
  * - User's strongest interests
  * - Content match quality
  * - Day-specific recommendations
- *
- * Day strategy:
- * Day 1 (ESTABLISH): Discover 1-2 creators from strongest topics
- * Days 2-3: Follow the strongest matches
- * Day 4 (EXPAND): Explore 2-3 creators
- * Day 5 (DEEPEN): Focus on strongest topic, 1-2 creators
- * Day 6 (REFINE): Light refinement, 1 creator
- * Day 7 (MAINTAIN): Maintenance, no new follows
+ * - Adaptive subtopic feedback deltas
  */
 function buildCreatorActions(
   interests: FeedPreference[],
   contentPreferences: ContentPreference[],
-  dayIndex: number
+  dayIndex: number,
+  subtopicDeltas: Record<string, number> = {}
 ): TrainingAction[] {
   // Skip days where we don't recommend creators
   if (![0, 1, 2, 3, 4, 5].includes(dayIndex)) return [];
@@ -368,12 +398,13 @@ function buildCreatorActions(
 
   if (targetInterests.length === 0) return [];
 
-  // Use discovery library to select best creators
+  // Use discovery library to select best creators with subtopic awareness
   const selectedCreators = selectCreators(
     targetInterests,
     maxCreators,
     contentPreferences,
-    dayIndex
+    dayIndex,
+    subtopicDeltas
   );
 
   if (selectedCreators.length === 0) return [];
@@ -381,7 +412,7 @@ function buildCreatorActions(
   // Convert to training actions
   return selectedCreators.map(creator => {
     const type = creatorActionType(creator.platform);
-    const explanation = generateCreatorExplanation(creator, targetInterests);
+    const explanation = generateCreatorExplanation(creator, targetInterests, subtopicDeltas);
 
     return {
       id: `day-${dayIndex + 1}-${type.toLowerCase()}-${creator.id}`,
@@ -524,21 +555,32 @@ function generatePlanSummary(
 
 /**
  * Main function to generate a complete 7-day Feed Training Plan.
- * The plan is deterministic and derived entirely from the user's preferences.
+ * The plan is deterministic and derived entirely from the user's preferences,
+ * optionally adapted by feedback history.
  */
 export function generateFeedTrainingPlan(
   blueprint: SignalBlueprint,
-  platform: TrainingPlatform = DEFAULT_PLATFORM
+  platform: TrainingPlatform = DEFAULT_PLATFORM,
+  adaptiveSignal?: AdaptiveSignalState
 ): FeedTrainingPlan {
-  const interests = getAllInterests(blueprint);
+  const subtopicDeltas = adaptiveSignal?.subtopicDeltas ?? {};
+
+  const baseInterests = getAllInterests(blueprint);
+  const interests = adaptiveSignal
+    ? baseInterests.map(interest => {
+        const adapted = adaptiveSignal.topics[interest.id];
+        return adapted ? { ...interest, strength: adapted.adjustedStrength } : interest;
+      }).sort((a, b) => b.strength - a.strength || a.name.localeCompare(b.name))
+    : baseInterests;
+
   const contentPreferences = getContentPreferences(blueprint);
 
   const days = STAGE_DETAILS.map((stage, dayIndex) => ({
     ...stage,
     actions: [
       ...buildWatchActions(interests, contentPreferences, dayIndex),
-      ...buildSearchActions(interests, contentPreferences, dayIndex),
-      ...buildCreatorActions(interests, contentPreferences, dayIndex),
+      ...buildSearchActions(interests, contentPreferences, dayIndex, subtopicDeltas),
+      ...buildCreatorActions(interests, contentPreferences, dayIndex, subtopicDeltas),
       ...buildEngageActions(interests, contentPreferences, dayIndex),
       ...buildAvoidActions(blueprint, dayIndex),
     ],

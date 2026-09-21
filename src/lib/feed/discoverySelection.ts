@@ -36,7 +36,8 @@ function scoreSearchQuery(
   query: DiscoverySearchQuery,
   interest: FeedPreference,
   dayIndex: number,
-  contentPreferences: ContentPreference[]
+  contentPreferences: ContentPreference[],
+  subtopicDeltas: Record<string, number> = {}
 ): number {
   let score = 0;
 
@@ -74,6 +75,15 @@ function scoreSearchQuery(
   // Queries tied to a matching subtopic and a strong interest get a bonus.
   if (query.subtopic) {
     score += interest.strength > 75 ? 3 : interest.strength > 45 ? 1 : 0;
+
+    // Apply subtopic feedback delta if present
+    const delta = subtopicDeltas[query.subtopic] ?? 0;
+    score += delta;
+
+    // If subtopic is positively boosted, deepen progression bonus
+    if (delta > 0 && (query.specificity === "specific" || query.specificity === "discovery")) {
+      score += 4;
+    }
   }
 
   return score;
@@ -85,7 +95,8 @@ function scoreSearchQuery(
 export function selectSearchQuery(
   interest: FeedPreference,
   dayIndex: number,
-  contentPreferences: ContentPreference[]
+  contentPreferences: ContentPreference[],
+  subtopicDeltas: Record<string, number> = {}
 ): string {
   const topic = getDiscoveryTopic(interest.id);
 
@@ -100,7 +111,7 @@ export function selectSearchQuery(
   const orderedCandidates = (preferredQueries.length > 0 ? preferredQueries : topic.searches)
     .map((query, index) => ({
       query,
-      score: scoreSearchQuery(query, interest, dayIndex, contentPreferences),
+      score: scoreSearchQuery(query, interest, dayIndex, contentPreferences, subtopicDeltas),
       index,
     }))
     .sort((a, b) => b.score - a.score || a.index - b.index);
@@ -118,12 +129,14 @@ function scoreCreator(
     name: string;
     platform: string;
     topics: readonly string[];
+    subtopics?: readonly string[];
     url?: string;
     description: string;
   },
   interests: FeedPreference[],
   contentPreferences: ContentPreference[] = [],
-  dayIndex: number = 0
+  dayIndex: number = 0,
+  subtopicDeltas: Record<string, number> = {}
 ): number {
   let score = 0;
 
@@ -142,9 +155,23 @@ function scoreCreator(
     score += 10;
   }
 
+  // Adjust score based on subtopic feedback
+  const creatorSubtopics = creator.subtopics ?? [];
+  for (const st of creatorSubtopics) {
+    const delta = subtopicDeltas[st] ?? 0;
+    score += delta * 1.5;
+  }
+
+  // Also check if creator description references any boosted/demoted subtopics
+  const creatorText = [creator.name, creator.description].join(" ").toLowerCase();
+  for (const [subId, delta] of Object.entries(subtopicDeltas)) {
+    if (delta !== 0 && creatorText.includes(subId.replace(/-/g, " "))) {
+      score += delta;
+    }
+  }
+
   if (contentPreferences.length > 0) {
     const contentTypes = new Set(contentPreferences.map(cp => cp.id));
-    const creatorText = [creator.name, creator.description].join(" ").toLowerCase();
     const matches = Array.from(contentTypes).filter(type => creatorText.includes(type));
     score += matches.length * 4;
   }
@@ -153,7 +180,7 @@ function scoreCreator(
     score += 4;
   }
 
-  return score;
+  return Math.max(0, score);
 }
 
 /**
@@ -163,7 +190,8 @@ export function selectCreators(
   interests: FeedPreference[],
   maxCount: number = 3,
   contentPreferences: ContentPreference[] = [],
-  dayIndex: number = 0
+  dayIndex: number = 0,
+  subtopicDeltas: Record<string, number> = {}
 ): CreatorRecommendation[] {
   if (interests.length === 0) {
     return [];
@@ -176,6 +204,7 @@ export function selectCreators(
       name: creator.name,
       platform: creator.platform,
       topics: creator.topics,
+      subtopics: creator.subtopics,
       url: creator.url,
       description: creator.description,
     }));
@@ -187,7 +216,7 @@ export function selectCreators(
 
   const scored = allCreators.map((creator, index) => ({
     creator,
-    score: scoreCreator(creator, interests, contentPreferences, dayIndex),
+    score: scoreCreator(creator, interests, contentPreferences, dayIndex, subtopicDeltas),
     index,
   }));
 
@@ -215,17 +244,26 @@ export function selectCreators(
 export function generateSearchExplanation(
   interest: FeedPreference,
   contentPreferences: ContentPreference[],
-  isTopInterest: boolean
+  isTopInterest: boolean,
+  subtopicName?: string,
+  subtopicDelta?: number
 ): string {
   const strengthLabel =
     interest.strength >= 80 ? "core" : interest.strength >= 60 ? "strong" : "supporting";
 
   const parts: string[] = [];
-  parts.push(
-    `This search reinforces ${interest.name}, one of your ${strengthLabel} interests (${interest.strength}/100).`
-  );
 
-  if (isTopInterest) {
+  if (subtopicName && subtopicDelta && subtopicDelta > 0) {
+    parts.push(
+      `This search explores deeper into ${subtopicName}, aligning with topics you've indicated you want more of in ${interest.name}.`
+    );
+  } else {
+    parts.push(
+      `This search reinforces ${interest.name}, one of your ${strengthLabel} interests (${interest.strength}/100).`
+    );
+  }
+
+  if (isTopInterest && (!subtopicDelta || subtopicDelta <= 0)) {
     parts.push("It keeps the signal focused on your strongest objective instead of spreading attention too broadly.");
   }
 
@@ -242,7 +280,8 @@ export function generateSearchExplanation(
  */
 export function generateCreatorExplanation(
   creator: CreatorRecommendation,
-  interests: FeedPreference[]
+  interests: FeedPreference[],
+  subtopicDeltas: Record<string, number> = {}
 ): string {
   const creatorTopicIds = new Set(creator.topics.map(t => String(t)));
   const matchingInterests = interests
@@ -254,7 +293,20 @@ export function generateCreatorExplanation(
     return "Recommended because it adds another signal around your current focus without introducing unrelated topics.";
   }
 
+  // Check if creator matches any positively boosted subtopic
+  const hasBoostedSubtopic = Object.entries(subtopicDeltas).some(
+    ([subId, delta]) =>
+      delta > 0 &&
+      (creator.description.toLowerCase().includes(subId.replace(/-/g, " ")) ||
+        creator.name.toLowerCase().includes(subId.replace(/-/g, " ")))
+  );
+
   const topicNames = matchingInterests.map(i => i.name).join(" and ");
+
+  if (hasBoostedSubtopic) {
+    return `Recommended because ${creator.name} aligns with ${topicNames}, focusing on areas you've indicated you want more of.`;
+  }
+
   return `Recommended because ${creator.name} reinforces ${topicNames} and adds another genuine signal around the topics you already care about.`;
 }
 

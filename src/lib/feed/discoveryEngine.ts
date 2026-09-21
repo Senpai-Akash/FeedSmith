@@ -1,4 +1,5 @@
 import {
+  AdaptiveSignalState,
   ContentPreference,
   CreatorRecommendation,
   DiscoveryActionType,
@@ -23,6 +24,8 @@ export interface GenerateDiscoveryOptions {
   completedActions?: Record<string, boolean>;
   platform?: TrainingPlatform;
   plan?: FeedTrainingPlan;
+  adaptiveSignal?: AdaptiveSignalState;
+  subtopicDeltas?: Record<string, number>;
 }
 
 interface StageMeta {
@@ -207,7 +210,8 @@ function buildSearchPaths(
   dayIndex: number,
   stageMeta: StageMeta,
   platform: TrainingPlatform,
-  completedActions: Record<string, boolean>
+  completedActions: Record<string, boolean>,
+  subtopicDeltas: Record<string, number> = {}
 ): DiscoveryItem[] {
   if (interests.length === 0) return [];
 
@@ -264,10 +268,19 @@ function buildSearchPaths(
       }));
     }
 
-    // Filter out suppressed queries
+    // Filter out suppressed queries and heavily downvoted subtopics
     const validCandidates = candidates.filter(
-      c => !isSuppressed(c.query, [interest.name, c.subtopic ?? ""], filters)
+      c =>
+        !isSuppressed(c.query, [interest.name, c.subtopic ?? ""], filters) &&
+        (c.subtopic ? (subtopicDeltas[c.subtopic] ?? 0) > -15 : true)
     );
+
+    // Sort valid candidates so positively feedback-boosted subtopics appear first
+    validCandidates.sort((a, b) => {
+      const deltaA = a.subtopic ? subtopicDeltas[a.subtopic] ?? 0 : 0;
+      const deltaB = b.subtopic ? subtopicDeltas[b.subtopic] ?? 0 : 0;
+      return deltaB - deltaA;
+    });
 
     if (validCandidates.length > 0) {
       // Deterministically pick candidate using dayIndex and interest index
@@ -277,13 +290,16 @@ function buildSearchPaths(
 
       const subtopicObj = topic?.subtopics.find(s => s.id === picked.subtopic);
       const subtopicName = subtopicObj?.name ?? (picked.subtopic ? picked.subtopic.replace(/-/g, " ") : undefined);
+      const subtopicDelta = picked.subtopic ? subtopicDeltas[picked.subtopic] ?? 0 : 0;
 
       const isPrimary = intIndex < 2;
       let reason = `Recommended because ${interest.name} is one of your ${
         isPrimary ? "primary" : "secondary"
       } interests (${interest.strength}/100).`;
 
-      if (subtopicName) {
+      if (subtopicName && subtopicDelta > 0) {
+        reason += ` This search explores deeper into ${subtopicName}, aligning with topics you've indicated you want more of.`;
+      } else if (subtopicName) {
         reason += ` This search expands into ${subtopicName} to sharpen your signal.`;
       }
       if (contentPreferences.length > 0) {
@@ -327,7 +343,8 @@ function buildCreatorRecommendations(
   dayIndex: number,
   stageMeta: StageMeta,
   platform: TrainingPlatform,
-  completedActions: Record<string, boolean>
+  completedActions: Record<string, boolean>,
+  subtopicDeltas: Record<string, number> = {}
 ): DiscoveryItem[] {
   if (interests.length === 0) return [];
 
@@ -385,6 +402,16 @@ function buildCreatorRecommendations(
         score += interest.strength;
       });
 
+      // Feedback adjustments
+      const creatorText = [creator.name, creator.description].join(" ").toLowerCase();
+      let matchedBoostedSubtopic = false;
+      for (const [subId, delta] of Object.entries(subtopicDeltas)) {
+        if (delta !== 0 && creatorText.includes(subId.replace(/-/g, " "))) {
+          score += delta;
+          if (delta > 0) matchedBoostedSubtopic = true;
+        }
+      }
+
       if (contentPreferences.length > 0) {
         const topContent = contentPreferences[0].id.toLowerCase();
         if (creator.description.toLowerCase().includes(topContent)) {
@@ -395,7 +422,8 @@ function buildCreatorRecommendations(
       return {
         creator,
         matchedInterests,
-        score,
+        matchedBoostedSubtopic,
+        score: Math.max(0, score),
       };
     })
     .filter((item): item is NonNullable<typeof item> => item !== null)
@@ -407,7 +435,12 @@ function buildCreatorRecommendations(
     const isCompleted = Boolean(completedActions[actionId]);
 
     const topicsLabel = item.matchedInterests.map(i => i.name).join(" and ");
-    const reason = `Recommended because ${item.creator.name} focuses heavily on ${topicsLabel}, which can reinforce your ${primaryMatch.name} signal (${primaryMatch.strength}/100) and aligns with your content goals.`;
+    let reason: string;
+    if (item.matchedBoostedSubtopic) {
+      reason = `Recommended because ${item.creator.name} aligns with ${topicsLabel}, focusing on areas you've indicated you want more of.`;
+    } else {
+      reason = `Recommended because ${item.creator.name} focuses heavily on ${topicsLabel}, which can reinforce your ${primaryMatch.name} signal (${primaryMatch.strength}/100) and aligns with your content goals.`;
+    }
 
     items.push({
       id: `disc-creator-${item.creator.id}-${dayIndex}`,
@@ -589,7 +622,11 @@ export function generatePersonalizedDiscovery(
     dayIndex = 0,
     completedActions = {},
     platform = "instagram",
+    adaptiveSignal,
+    subtopicDeltas: explicitSubtopicDeltas,
   } = options;
+
+  const subtopicDeltas = explicitSubtopicDeltas ?? adaptiveSignal?.subtopicDeltas ?? {};
 
   // Bound day index between 0 and 6
   const safeDayIndex = Math.max(0, Math.min(6, Math.floor(dayIndex)));
@@ -606,7 +643,8 @@ export function generatePersonalizedDiscovery(
     safeDayIndex,
     stageMeta,
     platform,
-    completedActions
+    completedActions,
+    subtopicDeltas
   );
 
   const curatedCreators = buildCreatorRecommendations(
@@ -616,7 +654,8 @@ export function generatePersonalizedDiscovery(
     safeDayIndex,
     stageMeta,
     platform,
-    completedActions
+    completedActions,
+    subtopicDeltas
   );
 
   const crossoverSuggestions = buildCrossoverSuggestions(

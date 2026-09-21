@@ -84,6 +84,8 @@ export interface TrainingActionBase {
   title: string;
   description: string;
   why: string;
+  subtopicId?: string;
+  subtopicName?: string;
 }
 
 export interface WatchTrainingAction extends TrainingActionBase {
@@ -316,3 +318,98 @@ export interface ClassifiedInterest extends FeedPreference {
 export interface ClassifiedContentPreference extends ContentPreference {
   priority: PriorityLevel;
 }
+
+/**
+ * Feedback value expressing user sentiment on a recommendation.
+ */
+export type FeedbackValue = "MORE" | "LESS" | "USEFUL" | "NOT_USEFUL";
+
+/**
+ * Lightweight user feedback entry connected to an actionable item or topic.
+ */
+export interface UserFeedback {
+  id: string;
+  actionId: string;
+  topicId: string;
+  topicName?: string;
+  subtopicId?: string;
+  subtopicName?: string;
+  category?: string;
+  type?: TrainingActionType | DiscoveryItemType;
+  value: FeedbackValue;
+  timestamp: string;
+  trainingDay: number; // 1 to 7
+}
+
+/**
+ * Storage structure for user feedback collection.
+ */
+export interface FeedbackMeta {
+  version: 1;
+  updatedAt?: string;
+  items: UserFeedback[];
+}
+
+/**
+ * Semantic status labels for signal progress.
+ */
+export type SignalStatusLabel =
+  | "Core"
+  | "Strong"
+  | "Growing"
+  | "Established"
+  | "Emerging"
+  | "Refining"
+  | "Explored";
+
+/**
+ * Derived adapted subtopic signal representation.
+ */
+export interface AdaptedSubtopicSignal {
+  id: string;
+  name: string;
+  delta: number;
+  feedbackCount: number;
+  statusLabel: SignalStatusLabel;
+}
+
+/**
+ * Derived adapted topic signal representation.
+ */
+export interface AdaptedTopicSignal {
+  id: string;
+  name: string;
+  baseStrength: number;
+  adjustedStrength: number;
+  delta: number;
+  statusLabel: SignalStatusLabel;
+  subtopics: AdaptedSubtopicSignal[];
+}
+
+/**
+ * Complete derived adaptive signal state.
+ */
+export interface AdaptiveSignalState {
+  topics: Record<string, AdaptedTopicSignal>;
+  subtopicDeltas: Record<string, number>;
+  overallStrength: number;
+  feedbackCount: number;
+  hasAdaptations: boolean;
+  adaptationSummary?: string;
+  explanations: string[];
+}
+
+/**
+ * Deterministic timeline entry for the signal journey.
+ */
+export interface SignalJourneyEntry {
+  day: number;
+  stage: string;
+  title: string;
+  description: string;
+  highlightTopic?: string;
+  highlightSubtopic?: string;
+  type: "established" | "reinforced" | "discovered" | "strengthened" | "adapted" | "refined";
+  timestamp?: string;
+}
+

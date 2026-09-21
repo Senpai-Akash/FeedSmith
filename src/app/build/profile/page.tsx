@@ -13,8 +13,11 @@ import { generateSignalBlueprint } from "@/lib/feed/blueprint";
 import { loadPreferences, normalizePreferences } from "@/lib/feed/preferences";
 import {
   DiscoveryItem,
+  DiscoveryItemType,
   FeedPreferences,
   FeedTrainingDay,
+  FeedbackValue,
+  SignalStatusLabel,
   TrainingAction,
   TrainingActionType,
 } from "@/lib/feed/types";
@@ -34,6 +37,20 @@ import {
   type TrainingHistoryMeta,
 } from "@/lib/feed/history";
 import { getPlaybookInstruction, type PlatformInstruction } from "@/lib/feed/playbook";
+import {
+  clearUserFeedbackMeta,
+  createFeedbackMeta,
+  getFeedbackForAction,
+  loadUserFeedbackMeta,
+  recordFeedback,
+  removeFeedback,
+  saveUserFeedbackMeta,
+  type FeedbackMeta,
+} from "@/lib/feed/feedback";
+import {
+  buildSignalJourney,
+  calculateDerivedSignal,
+} from "@/lib/feed/adaptiveEngine";
 
 const PROGRESS_STORAGE_KEY = "feedTrainingProgress";
 
@@ -59,6 +76,58 @@ const ACTION_LABELS: Record<TrainingActionType, string> = {
   ENGAGE: "ENGAGE",
   AVOID: "AVOID",
 };
+
+const FEEDBACK_OPTIONS: {
+  value: FeedbackValue;
+  label: string;
+  shortLabel: string;
+  activeClass: string;
+}[] = [
+  {
+    value: "MORE",
+    label: "+ More like this",
+    shortLabel: "+ More",
+    activeClass: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 font-semibold",
+  },
+  {
+    value: "USEFUL",
+    label: "👍 Useful",
+    shortLabel: "👍",
+    activeClass: "bg-violet-500/20 text-violet-300 border-violet-500/40 font-semibold",
+  },
+  {
+    value: "LESS",
+    label: "- Less of this",
+    shortLabel: "- Less",
+    activeClass: "bg-amber-500/20 text-amber-300 border-amber-500/40 font-semibold",
+  },
+  {
+    value: "NOT_USEFUL",
+    label: "👎 Not Useful",
+    shortLabel: "👎",
+    activeClass: "bg-rose-500/20 text-rose-300 border-rose-500/40 font-semibold",
+  },
+];
+
+function getStatusBadgeStyle(status: SignalStatusLabel): string {
+  switch (status) {
+    case "Core":
+      return "border-violet-500/40 bg-violet-500/15 text-violet-300";
+    case "Strong":
+      return "border-indigo-500/40 bg-indigo-500/15 text-indigo-300";
+    case "Growing":
+      return "border-emerald-500/40 bg-emerald-500/15 text-emerald-300";
+    case "Established":
+      return "border-cyan-500/40 bg-cyan-500/15 text-cyan-300";
+    case "Emerging":
+      return "border-amber-500/40 bg-amber-500/15 text-amber-300";
+    case "Refining":
+      return "border-rose-500/40 bg-rose-500/15 text-rose-300";
+    case "Explored":
+    default:
+      return "border-white/20 bg-white/5 text-white/70";
+  }
+}
 
 function loadTrainingProgress(planKey: string): TrainingProgress {
   if (typeof window === "undefined") {
@@ -111,7 +180,7 @@ function actionDetail(action: TrainingAction): string | undefined {
   }
 
   if (action.type === "SEARCH") {
-    return action.topicName;
+    return action.subtopicName ? `${action.topicName} → ${action.subtopicName}` : action.topicName;
   }
 
   if (action.type === "FOLLOW" || action.type === "SUBSCRIBE") {
@@ -135,6 +204,7 @@ export default function ProfilePage() {
   });
   const [hasLoadedHistory, setHasLoadedHistory] = useState(false);
   const [historyMeta, setHistoryMeta] = useState<TrainingHistoryMeta>(createTrainingHistoryMeta());
+  const [feedbackMeta, setFeedbackMeta] = useState<FeedbackMeta>(createFeedbackMeta());
   const [selectedActionForPlaybook, setSelectedActionForPlaybook] = useState<TrainingAction | null>(null);
   const [selectedDiscoveryItem, setSelectedDiscoveryItem] = useState<DiscoveryItem | null>(null);
   const [copiedQuery, setCopiedQuery] = useState<string | null>(null);
@@ -155,9 +225,20 @@ export default function ProfilePage() {
     [preferences]
   );
 
+  const adaptiveSignal = useMemo(
+    () =>
+      calculateDerivedSignal(
+        blueprint,
+        feedbackMeta.items,
+        progress.completed,
+        dayIndex + 1
+      ),
+    [blueprint, feedbackMeta.items, progress.completed, dayIndex]
+  );
+
   const plan = useMemo(
-    () => generateFeedTrainingPlan(blueprint),
-    [blueprint]
+    () => generateFeedTrainingPlan(blueprint, "instagram", adaptiveSignal),
+    [blueprint, adaptiveSignal]
   );
 
   const storageKey = useMemo(() => planStorageKey(plan.days), [plan.days]);
@@ -168,6 +249,7 @@ export default function ProfilePage() {
     const timeout = window.setTimeout(() => {
       setProgress(loadTrainingProgress(storageKey));
       setHistoryMeta(loadTrainingHistoryMeta());
+      setFeedbackMeta(loadUserFeedbackMeta());
       setHasLoadedHistory(true);
     }, 0);
 
@@ -209,6 +291,11 @@ export default function ProfilePage() {
     [history]
   );
 
+  const signalJourney = useMemo(
+    () => buildSignalJourney(plan, history.dailyHistory, feedbackMeta.items, blueprint),
+    [plan, history.dailyHistory, feedbackMeta.items, blueprint]
+  );
+
   const trainingStatus = history.status;
 
   const currentDay = plan.days[dayIndex] ?? plan.days[0];
@@ -225,8 +312,9 @@ export default function ProfilePage() {
         completedActions: progress.completed,
         platform: plan.platform,
         plan,
+        adaptiveSignal,
       }),
-    [blueprint, dayIndex, progress.completed, plan]
+    [blueprint, dayIndex, progress.completed, plan, adaptiveSignal]
   );
 
   const toggleAction = (actionId: string) => {
@@ -248,6 +336,40 @@ export default function ProfilePage() {
     saveTrainingHistoryMeta(updatedMeta);
   };
 
+  const handleFeedbackToggle = (
+    actionId: string,
+    topicId: string,
+    value: FeedbackValue,
+    extra?: {
+      topicName?: string;
+      subtopicId?: string;
+      subtopicName?: string;
+      type?: TrainingActionType | DiscoveryItemType;
+    }
+  ) => {
+    const existing = getFeedbackForAction(feedbackMeta, actionId);
+    let updatedMeta: FeedbackMeta;
+
+    if (existing && existing.value === value) {
+      updatedMeta = removeFeedback(feedbackMeta, actionId);
+    } else {
+      const res = recordFeedback(feedbackMeta, {
+        actionId,
+        topicId,
+        topicName: extra?.topicName,
+        subtopicId: extra?.subtopicId,
+        subtopicName: extra?.subtopicName,
+        type: extra?.type,
+        value,
+        trainingDay: dayIndex + 1,
+      });
+      updatedMeta = res.meta;
+    }
+
+    setFeedbackMeta(updatedMeta);
+    saveUserFeedbackMeta(updatedMeta);
+  };
+
   const handleResetTraining = () => {
     if (!showResetConfirm) {
       setShowResetConfirm(true);
@@ -258,6 +380,11 @@ export default function ProfilePage() {
     const cleared = createTrainingHistoryMeta();
     setHistoryMeta(cleared);
     clearTrainingHistoryMeta();
+
+    const clearedFeedback = createFeedbackMeta();
+    setFeedbackMeta(clearedFeedback);
+    clearUserFeedbackMeta();
+
     setDayIndex(0);
     setShowResetConfirm(false);
   };
@@ -337,6 +464,50 @@ export default function ProfilePage() {
                       </li>
                     ))}
                   </ul>
+                </div>
+              </div>
+
+              {/* In-Modal Feedback Controls */}
+              <div className="mt-5 rounded-lg border border-white/10 bg-white/[0.02] p-3.5">
+                <div className="text-[11px] font-semibold text-white/60 mb-2">
+                  Tune this recommendation:
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {FEEDBACK_OPTIONS.map(opt => {
+                    const currentFb = getFeedbackForAction(feedbackMeta, selectedActionForPlaybook.id);
+                    const isSelected = currentFb?.value === opt.value;
+                    const actionTopic = "topic" in selectedActionForPlaybook && typeof selectedActionForPlaybook.topic === "string" ? selectedActionForPlaybook.topic : "general";
+                    const actionTopicName = "topicName" in selectedActionForPlaybook && typeof selectedActionForPlaybook.topicName === "string" ? selectedActionForPlaybook.topicName : undefined;
+                    const actionSubtopicId = "subtopicId" in selectedActionForPlaybook && typeof selectedActionForPlaybook.subtopicId === "string" ? selectedActionForPlaybook.subtopicId : undefined;
+                    const actionSubtopicName = "subtopicName" in selectedActionForPlaybook && typeof selectedActionForPlaybook.subtopicName === "string" ? selectedActionForPlaybook.subtopicName : undefined;
+
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() =>
+                          handleFeedbackToggle(
+                            selectedActionForPlaybook.id,
+                            actionTopic,
+                            opt.value,
+                            {
+                              topicName: actionTopicName,
+                              subtopicId: actionSubtopicId,
+                              subtopicName: actionSubtopicName,
+                              type: selectedActionForPlaybook.type,
+                            }
+                          )
+                        }
+                        className={`rounded-md border px-2.5 py-1 text-xs transition ${
+                          isSelected
+                            ? opt.activeClass
+                            : "border-white/10 bg-white/5 text-white/60 hover:border-white/20 hover:text-white"
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -439,7 +610,47 @@ export default function ProfilePage() {
                 </div>
               )}
 
-              {/* Action buttons */}
+              {/* Action & Feedback buttons */}
+              {selectedDiscoveryItem.actionId && (
+                <div className="mt-4 rounded-lg border border-white/10 bg-white/[0.02] p-3">
+                  <div className="text-[11px] font-semibold text-white/60 mb-2">
+                    Rate this recommendation:
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {FEEDBACK_OPTIONS.map(opt => {
+                      const currentFb = getFeedbackForAction(feedbackMeta, selectedDiscoveryItem.actionId!);
+                      const isSelected = currentFb?.value === opt.value;
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() =>
+                            handleFeedbackToggle(
+                              selectedDiscoveryItem.actionId!,
+                              selectedDiscoveryItem.topicId,
+                              opt.value,
+                              {
+                                topicName: selectedDiscoveryItem.topicName,
+                                subtopicId: selectedDiscoveryItem.subtopicId,
+                                subtopicName: selectedDiscoveryItem.subtopicName,
+                                type: selectedDiscoveryItem.type,
+                              }
+                            )
+                          }
+                          className={`rounded-md border px-2.5 py-1 text-xs transition ${
+                            isSelected
+                              ? opt.activeClass
+                              : "border-white/10 bg-white/5 text-white/60 hover:border-white/20 hover:text-white"
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               <div className="mt-6 flex items-center justify-between border-t border-white/10 pt-4">
                 {selectedDiscoveryItem.searchQuery ? (
                   <button
@@ -515,20 +726,55 @@ export default function ProfilePage() {
                   : "border-white/10 text-white/50 hover:border-white/20 hover:text-white"
               }`}
             >
-              {showResetConfirm ? "Confirm Reset" : "Reset Progress"}
+              {showResetConfirm ? "Confirm Reset" : "Reset Progress & Feedback"}
             </button>
           </div>
         </div>
+
+        {/* Adaptive Feedback Explanation Banner */}
+        {adaptiveSignal.explanations.length > 0 && (
+          <div className="rounded-xl border border-violet-500/30 bg-violet-500/10 p-4">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-violet-300">
+              <span className="inline-block h-2 w-2 rounded-full bg-violet-400 animate-pulse" />
+              Adaptive Training Engine Active
+            </div>
+            <p className="mt-1 text-xs text-violet-200/80">
+              Your feedback & training progress have dynamically tuned this plan:
+            </p>
+            <ul className="mt-2 space-y-1 text-xs text-white/85">
+              {adaptiveSignal.explanations.map((exp, idx) => (
+                <li key={idx} className="flex items-start gap-2">
+                  <span className="text-violet-400">⚡</span> {exp}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {/* Top Blueprint Summary */}
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="rounded-xl border border-white/10 bg-white/[0.02] p-5 lg:col-span-2">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium uppercase tracking-wider text-white/40">
-                Signal Summary
+                Signal Summary & Status
               </span>
               <span className="text-xs text-white/50">
-                Overall Strength: <span className="font-semibold text-white">{blueprint.overallStrength}%</span>
+                Derived Strength:{" "}
+                <span className="font-semibold text-white">
+                  {adaptiveSignal.overallStrength}%
+                </span>
+                {adaptiveSignal.overallStrength !== blueprint.overallStrength && (
+                  <span
+                    className={`ml-1.5 text-[11px] font-semibold ${
+                      adaptiveSignal.overallStrength > blueprint.overallStrength
+                        ? "text-emerald-400"
+                        : "text-amber-400"
+                    }`}
+                  >
+                    ({adaptiveSignal.overallStrength > blueprint.overallStrength ? "+" : ""}
+                    {adaptiveSignal.overallStrength - blueprint.overallStrength}%)
+                  </span>
+                )}
               </span>
             </div>
             <p className="mt-3 text-sm leading-relaxed text-white/80">
@@ -536,22 +782,26 @@ export default function ProfilePage() {
             </p>
 
             <div className="mt-4 flex flex-wrap gap-2">
-              {blueprint.primaryInterests.map(interest => (
-                <span
-                  key={interest.id}
-                  className="rounded-full border border-violet-500/30 bg-violet-500/10 px-3 py-1 text-xs text-violet-200"
-                >
-                  {interest.name} ({interest.strength}%)
-                </span>
-              ))}
-              {blueprint.secondaryInterests.map(interest => (
-                <span
-                  key={interest.id}
-                  className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/60"
-                >
-                  {interest.name} ({interest.strength}%)
-                </span>
-              ))}
+              {Object.values(adaptiveSignal.topics).map(topic => {
+                const badgeStyle = getStatusBadgeStyle(topic.statusLabel);
+                return (
+                  <span
+                    key={topic.id}
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium ${badgeStyle}`}
+                    title={`Status: ${topic.statusLabel}`}
+                  >
+                    <span>{topic.name} ({topic.adjustedStrength}%)</span>
+                    {topic.delta !== 0 && (
+                      <span className="text-[10px] opacity-80">
+                        {topic.delta > 0 ? `+${topic.delta}` : topic.delta}
+                      </span>
+                    )}
+                    <span className="rounded bg-white/10 px-1.5 py-0.5 text-[9px] uppercase tracking-wider opacity-80">
+                      {topic.statusLabel}
+                    </span>
+                  </span>
+                );
+              })}
               {blueprint.suppressed.map(filter => (
                 <span
                   key={filter}
@@ -693,7 +943,45 @@ export default function ProfilePage() {
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <div className="flex items-center gap-1">
+                            {FEEDBACK_OPTIONS.map(opt => {
+                              const fb = getFeedbackForAction(feedbackMeta, action.id);
+                              const isSelected = fb?.value === opt.value;
+                              const actTopic = "topic" in action && typeof action.topic === "string" ? action.topic : "general";
+                              const actTopicName = "topicName" in action && typeof action.topicName === "string" ? action.topicName : undefined;
+                              const actSubtopicId = "subtopicId" in action && typeof action.subtopicId === "string" ? action.subtopicId : undefined;
+                              const actSubtopicName = "subtopicName" in action && typeof action.subtopicName === "string" ? action.subtopicName : undefined;
+
+                              return (
+                                <button
+                                  key={opt.value}
+                                  type="button"
+                                  onClick={() =>
+                                    handleFeedbackToggle(
+                                      action.id,
+                                      actTopic,
+                                      opt.value,
+                                      {
+                                        topicName: actTopicName,
+                                        subtopicId: actSubtopicId,
+                                        subtopicName: actSubtopicName,
+                                        type: action.type,
+                                      }
+                                    )
+                                  }
+                                  className={`rounded px-1.5 py-0.5 text-[10px] font-medium transition border ${
+                                    isSelected
+                                      ? opt.activeClass
+                                      : "border-white/10 bg-white/5 text-white/50 hover:text-white"
+                                  }`}
+                                  title={opt.label}
+                                >
+                                  {opt.shortLabel}
+                                </button>
+                              );
+                            })}
+                          </div>
                           <button
                             type="button"
                             onClick={() => setSelectedActionForPlaybook(action)}
@@ -774,13 +1062,49 @@ export default function ProfilePage() {
                       </p>
 
                       <div className="mt-3 flex items-center justify-between border-t border-white/5 pt-2">
-                        <button
-                          type="button"
-                          onClick={() => handleCopy(item.searchQuery || item.title)}
-                          className="text-[10px] text-white/40 hover:text-white"
-                        >
-                          {copiedQuery === (item.searchQuery || item.title) ? "✓ Copied" : "📋 Copy Search"}
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleCopy(item.searchQuery || item.title)}
+                            className="text-[10px] text-white/40 hover:text-white"
+                          >
+                            {copiedQuery === (item.searchQuery || item.title) ? "✓ Copied" : "📋 Copy Search"}
+                          </button>
+                          <div className="flex items-center gap-1">
+                            {FEEDBACK_OPTIONS.map(opt => {
+                              const targetId = item.actionId || item.id;
+                              const fb = getFeedbackForAction(feedbackMeta, targetId);
+                              const isSelected = fb?.value === opt.value;
+                              return (
+                                <button
+                                  key={opt.value}
+                                  type="button"
+                                  onClick={() =>
+                                    handleFeedbackToggle(
+                                      targetId,
+                                      item.topicId,
+                                      opt.value,
+                                      {
+                                        topicName: item.topicName,
+                                        subtopicId: item.subtopicId,
+                                        subtopicName: item.subtopicName,
+                                        type: item.type,
+                                      }
+                                    )
+                                  }
+                                  className={`rounded px-1 py-0.5 text-[9px] font-medium transition border ${
+                                    isSelected
+                                      ? opt.activeClass
+                                      : "border-white/5 bg-white/[0.02] text-white/40 hover:text-white"
+                                  }`}
+                                  title={opt.label}
+                                >
+                                  {opt.shortLabel}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
 
                         {item.actionId && (
                           <button
@@ -843,9 +1167,40 @@ export default function ProfilePage() {
                       </p>
 
                       <div className="mt-3 flex items-center justify-between border-t border-white/5 pt-2">
-                        <span className="text-[10px] text-violet-300/80">
-                          Aligns with your signals
-                        </span>
+                        <div className="flex items-center gap-1">
+                          {FEEDBACK_OPTIONS.map(opt => {
+                            const targetId = item.actionId || item.id;
+                            const fb = getFeedbackForAction(feedbackMeta, targetId);
+                            const isSelected = fb?.value === opt.value;
+                            return (
+                              <button
+                                key={opt.value}
+                                type="button"
+                                onClick={() =>
+                                  handleFeedbackToggle(
+                                    targetId,
+                                    item.topicId,
+                                    opt.value,
+                                    {
+                                      topicName: item.topicName,
+                                      subtopicId: item.subtopicId,
+                                      subtopicName: item.subtopicName,
+                                      type: item.type,
+                                    }
+                                  )
+                                }
+                                className={`rounded px-1 py-0.5 text-[9px] font-medium transition border ${
+                                  isSelected
+                                    ? opt.activeClass
+                                    : "border-white/5 bg-white/[0.02] text-white/40 hover:text-white"
+                                }`}
+                                title={opt.label}
+                              >
+                                {opt.shortLabel}
+                              </button>
+                            );
+                          })}
+                        </div>
                         {item.actionId && (
                           <button
                             type="button"
@@ -897,6 +1252,43 @@ export default function ProfilePage() {
                     <p className="mt-1 text-[11px] text-white/70">
                       {item.reason}
                     </p>
+                    <div className="mt-2.5 flex items-center justify-between border-t border-violet-500/20 pt-2">
+                      <span className="text-[10px] text-violet-300/60">Topic resonance</span>
+                      <div className="flex items-center gap-1">
+                        {FEEDBACK_OPTIONS.map(opt => {
+                          const targetId = item.actionId || item.id;
+                          const fb = getFeedbackForAction(feedbackMeta, targetId);
+                          const isSelected = fb?.value === opt.value;
+                          return (
+                            <button
+                              key={opt.value}
+                              type="button"
+                              onClick={() =>
+                                handleFeedbackToggle(
+                                  targetId,
+                                  item.topicId,
+                                  opt.value,
+                                  {
+                                    topicName: item.topicName,
+                                    subtopicId: item.subtopicId,
+                                    subtopicName: item.subtopicName,
+                                    type: item.type,
+                                  }
+                                )
+                              }
+                              className={`rounded px-1 py-0.5 text-[9px] font-medium transition border ${
+                                isSelected
+                                  ? opt.activeClass
+                                  : "border-violet-500/30 bg-violet-500/20 text-violet-200 hover:text-white"
+                              }`}
+                              title={opt.label}
+                            >
+                              {opt.shortLabel}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </div>
                 ))}
 
@@ -923,12 +1315,109 @@ export default function ProfilePage() {
                     <p className="mt-1 text-[11px] text-white/60">
                       {item.reason}
                     </p>
+                    <div className="mt-2.5 flex items-center justify-between border-t border-white/5 pt-2">
+                      <span className="text-[10px] text-white/40">Format tuning</span>
+                      <div className="flex items-center gap-1">
+                        {FEEDBACK_OPTIONS.map(opt => {
+                          const targetId = item.actionId || item.id;
+                          const fb = getFeedbackForAction(feedbackMeta, targetId);
+                          const isSelected = fb?.value === opt.value;
+                          return (
+                            <button
+                              key={opt.value}
+                              type="button"
+                              onClick={() =>
+                                handleFeedbackToggle(
+                                  targetId,
+                                  item.topicId,
+                                  opt.value,
+                                  {
+                                    topicName: item.topicName,
+                                    subtopicId: item.subtopicId,
+                                    subtopicName: item.subtopicName,
+                                    type: item.type,
+                                  }
+                                )
+                              }
+                              className={`rounded px-1 py-0.5 text-[9px] font-medium transition border ${
+                                isSelected
+                                  ? opt.activeClass
+                                  : "border-white/5 bg-white/[0.02] text-white/40 hover:text-white"
+                              }`}
+                              title={opt.label}
+                            >
+                              {opt.shortLabel}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
           </div>
         </div>
+
+        {/* Signal Journey Timeline & Feedback Milestones */}
+        <div className="rounded-xl border border-white/10 bg-white/[0.02] p-6">
+          <div className="flex items-center justify-between border-b border-white/10 pb-4">
+            <div>
+              <span className="text-xs font-semibold uppercase tracking-wider text-violet-400">
+                Adaptive Signal Journey
+              </span>
+              <h2 className="mt-1 text-lg font-semibold text-white">
+                Evolution & Feedback Milestones
+              </h2>
+            </div>
+            <span className="text-xs text-white/50">
+              {signalJourney.length} Day Timeline
+            </span>
+          </div>
+
+          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+            {signalJourney.map(sj => {
+              const isCurrent = sj.day === dayIndex + 1;
+              return (
+                <div
+                  key={sj.day}
+                  className={`flex flex-col justify-between rounded-lg border p-3.5 transition ${
+                    isCurrent
+                      ? "border-violet-500/60 bg-violet-500/10 shadow-lg shadow-violet-500/10"
+                      : "border-white/10 bg-black/20 hover:border-white/20"
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-white/40">
+                        Day {sj.day}
+                      </span>
+                      <span className="rounded bg-violet-500/20 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-violet-300">
+                        {sj.type}
+                      </span>
+                    </div>
+
+                    <div className="mt-2 text-xs font-semibold text-white truncate" title={sj.title}>
+                      {sj.title}
+                    </div>
+
+                    <p className="mt-1 text-[11px] leading-relaxed text-white/60 line-clamp-3" title={sj.description}>
+                      {sj.description}
+                    </p>
+                  </div>
+
+                  {sj.highlightTopic && (
+                    <div className="mt-3 border-t border-white/5 pt-2 text-[10px] text-violet-300/80">
+                      Focus: <span className="text-white">{sj.highlightTopic}</span>
+                      {sj.highlightSubtopic ? ` · ${sj.highlightSubtopic}` : ""}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
 
         {/* Training History Meta / Consistency */}
         <div className="rounded-xl border border-white/10 bg-white/[0.02] p-6">
