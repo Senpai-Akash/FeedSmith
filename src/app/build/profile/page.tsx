@@ -420,7 +420,6 @@ export default function ProfilePage() {
   const isTrainingComplete = trainingStatus === "TRAINING_COMPLETE";
   const isFirstTimeUser = trainingStatus === "NOT_STARTED";
   const tomorrowDay = plan.days[dayIndex + 1];
-  const showMissionContent = !isFirstTimeUser && !isTrainingComplete;
 
   return (
     <main className="min-h-screen bg-[#070709] px-4 py-8 text-white sm:px-6 lg:px-8">
@@ -711,205 +710,214 @@ export default function ProfilePage() {
         )}
       </AnimatePresence>
 
-      <div className="mx-auto max-w-5xl space-y-8">
-        {/* Minimal Navigation */}
-        <div className="flex items-center justify-between border-b border-white/10 pb-4">
-          <Link
-            href="/build"
-            className="text-xs text-white/50 transition hover:text-white"
-          >
-            ← Blueprint
-          </Link>
+      <div className="mx-auto max-w-6xl space-y-8">
+        {/* Navigation & Header */}
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-6">
+          <div>
+            <div className="flex items-center gap-3">
+              <Link
+                href="/build"
+                className="text-xs uppercase tracking-wider text-white/50 transition hover:text-white"
+              >
+                ← Back to Blueprint
+              </Link>
+              <span className="text-white/20">|</span>
+              <span className="text-xs uppercase tracking-wider text-violet-400">
+                Feed Training Engine
+              </span>
+            </div>
+            <h1 className="mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+              Signal Blueprint & Discovery Plan
+            </h1>
+          </div>
+
           <div className="flex items-center gap-3">
             <Link
               href="/feed"
-              className="text-xs text-white/50 transition hover:text-white"
+              className="rounded-md border border-white/15 bg-white/5 px-3.5 py-1.5 text-xs font-medium text-white transition hover:bg-white/10"
             >
-              Preview Feed
+              Preview Feed →
             </Link>
             <button
               type="button"
               onClick={handleResetTraining}
-              className={`text-xs transition ${
+              className={`rounded-md border px-3 py-1.5 text-xs font-medium transition ${
                 showResetConfirm
-                  ? "text-rose-400 font-medium"
-                  : "text-white/40 hover:text-white"
+                  ? "border-rose-500/60 bg-rose-500/20 text-rose-300"
+                  : "border-white/10 text-white/50 hover:border-white/20 hover:text-white"
               }`}
             >
-              {showResetConfirm ? "Confirm Reset?" : "Reset"}
+              {showResetConfirm ? "Confirm Reset" : "Reset Progress & Feedback"}
             </button>
           </div>
         </div>
 
-        {/* First-Time User State */}
-        {isFirstTimeUser && (
-          <div className="rounded-xl border border-violet-500/30 bg-gradient-to-br from-violet-950/20 to-transparent p-8 text-center">
-            <h1 className="text-2xl font-semibold tracking-tight text-white">
-              Your Feed Training Plan
-            </h1>
-            <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-white/70">
-              FeedSmith turns your interests into a practical daily plan for intentionally 
-              shaping the content you interact with. Complete daily missions to strengthen your signals.
-            </p>
-            <div className="mt-6 inline-flex items-center gap-2 rounded-lg border border-violet-500/40 bg-violet-500/10 px-4 py-2 text-sm">
-              <span className="text-white/60">Day 1</span>
-              <span className="text-white/30">·</span>
-              <span className="font-medium text-white">{plan.days[0].stage}</span>
+        {/* Adaptive Feedback Explanation Banner */}
+        {adaptiveSignal.explanations.length > 0 && (
+          <div className="rounded-xl border border-violet-500/30 bg-violet-500/10 p-4">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-violet-300">
+              <span className="inline-block h-2 w-2 rounded-full bg-violet-400 animate-pulse" />
+              Adaptive Training Engine Active
             </div>
-            <p className="mx-auto mt-4 max-w-md text-xs text-white/50">
-              {plan.days[0].goal}
+            <p className="mt-1 text-xs text-violet-200/80">
+              Your feedback & training progress have dynamically tuned this plan:
             </p>
+            <ul className="mt-2 space-y-1 text-xs text-white/85">
+              {adaptiveSignal.explanations.map((exp, idx) => (
+                <li key={idx} className="flex items-start gap-2">
+                  <span className="text-violet-400">⚡</span> {exp}
+                </li>
+              ))}
+            </ul>
           </div>
         )}
 
-        {/* Training Complete State */}
-        {isTrainingComplete && (
-          <div className="rounded-xl border border-emerald-500/30 bg-gradient-to-br from-emerald-950/20 to-transparent p-8">
-            <div className="flex items-center justify-center gap-2 text-emerald-400">
-              <span className="text-2xl">✓</span>
-              <h1 className="text-2xl font-semibold tracking-tight">Training Complete</h1>
+        {/* Top Blueprint Summary */}
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="rounded-xl border border-white/10 bg-white/[0.02] p-5 lg:col-span-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium uppercase tracking-wider text-white/40">
+                Signal Summary & Status
+              </span>
+              <span className="text-xs text-white/50">
+                Derived Strength:{" "}
+                <span className="font-semibold text-white">
+                  {adaptiveSignal.overallStrength}%
+                </span>
+                {adaptiveSignal.overallStrength !== blueprint.overallStrength && (
+                  <span
+                    className={`ml-1.5 text-[11px] font-semibold ${
+                      adaptiveSignal.overallStrength > blueprint.overallStrength
+                        ? "text-emerald-400"
+                        : "text-amber-400"
+                    }`}
+                  >
+                    ({adaptiveSignal.overallStrength > blueprint.overallStrength ? "+" : ""}
+                    {adaptiveSignal.overallStrength - blueprint.overallStrength}%)
+                  </span>
+                )}
+              </span>
             </div>
-            <p className="mt-3 text-center text-sm text-white/70">
-              You've completed your 7-day feed training cycle.
+            <p className="mt-3 text-sm leading-relaxed text-white/80">
+              {blueprint.summary}
             </p>
-            
-            <div className="mt-6 grid gap-4 sm:grid-cols-3">
-              <div className="rounded-lg border border-white/10 bg-black/20 p-4 text-center">
-                <div className="text-xs text-white/50">Primary Signals</div>
-                <div className="mt-1 text-xl font-semibold text-white">
-                  {adaptiveSignal.topicWeights.filter(t => t.effectiveWeight >= 80).length}
-                </div>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              {Object.values(adaptiveSignal.topics).map(topic => {
+                const badgeStyle = getStatusBadgeStyle(topic.statusLabel);
+                return (
+                  <span
+                    key={topic.id}
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium ${badgeStyle}`}
+                    title={`Status: ${topic.statusLabel}`}
+                  >
+                    <span>{topic.name} ({topic.adjustedStrength}%)</span>
+                    {topic.delta !== 0 && (
+                      <span className="text-[10px] opacity-80">
+                        {topic.delta > 0 ? `+${topic.delta}` : topic.delta}
+                      </span>
+                    )}
+                    <span className="rounded bg-white/10 px-1.5 py-0.5 text-[9px] uppercase tracking-wider opacity-80">
+                      {topic.statusLabel}
+                    </span>
+                  </span>
+                );
+              })}
+              {blueprint.suppressed.map(filter => (
+                <span
+                  key={filter}
+                  className="rounded-full border border-rose-500/30 bg-rose-500/10 px-3 py-1 text-xs text-rose-300"
+                >
+                  Avoid: {filter}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {/* Progress Card */}
+          <div className="rounded-xl border border-white/10 bg-white/[0.02] p-5">
+            <span className="text-xs font-medium uppercase tracking-wider text-white/40">
+              Training Progress
+            </span>
+            <div className="mt-4 flex items-baseline justify-between">
+              <div className="text-3xl font-bold text-white">
+                {planProgress.progressPercent}%
               </div>
-              <div className="rounded-lg border border-white/10 bg-black/20 p-4 text-center">
-                <div className="text-xs text-white/50">Actions Completed</div>
-                <div className="mt-1 text-xl font-semibold text-white">
-                  {planProgress.completedActions}
-                </div>
-              </div>
-              <div className="rounded-lg border border-white/10 bg-black/20 p-4 text-center">
-                <div className="text-xs text-white/50">Consistency</div>
-                <div className="mt-1 text-xl font-semibold text-white">
-                  {consistency.percentage}%
-                </div>
+              <div className="text-xs text-white/50">
+                {planProgress.completedCount} of {planProgress.totalActions} actions
               </div>
             </div>
 
-            <div className="mt-6 flex flex-col items-center gap-3 border-t border-white/10 pt-6">
-              <p className="text-xs text-white/60">
-                Continue naturally with your strengthened signals or start fresh
-              </p>
+            <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-white/10">
+              <div
+                className="h-full bg-violet-500 transition-all duration-300"
+                style={{ width: `${planProgress.progressPercent}%` }}
+              />
+            </div>
+
+            <div className="mt-4 border-t border-white/10 pt-3 text-xs text-white/60">
+              Status: <span className="font-medium text-white">{trainingStatus.replace(/_/g, " ")}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* 7-Day Day Selector */}
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+          {plan.days.map((day, idx) => {
+            const isSelected = idx === dayIndex;
+            const dayMeta = history.dailyHistory.find((d: DailyHistory) => d.day === day.day);
+            const isComplete = dayMeta?.completed;
+
+            return (
               <button
+                key={day.day}
                 type="button"
-                onClick={() => setShowResetConfirm(true)}
-                className="rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10"
+                onClick={() => setDayIndex(idx)}
+                className={`flex flex-col justify-between rounded-xl border p-3.5 text-left transition ${
+                  isSelected
+                    ? "border-violet-400 bg-violet-500/10"
+                    : isComplete
+                    ? "border-emerald-500/30 bg-emerald-500/5 hover:border-emerald-500/50"
+                    : "border-white/10 bg-white/[0.02] hover:border-white/20"
+                }`}
               >
-                Start New Training Cycle
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-semibold text-white/50">
+                    Day {day.day}
+                  </span>
+                  {isComplete && (
+                    <span className="text-xs text-emerald-400">✓</span>
+                  )}
+                </div>
+                <div className="mt-2 text-xs font-semibold text-white">
+                  {day.stage}
+                </div>
               </button>
-            </div>
-          </div>
-        )}
+            );
+          })}
+        </div>
 
-        {/* Day Complete State */}
-        {showMissionContent && isDayComplete && (
-          <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-6">
-            <div className="flex items-center gap-2">
-              <span className="text-xl text-emerald-400">✓</span>
-              <h2 className="text-lg font-semibold text-white">Today Complete</h2>
-            </div>
-            <p className="mt-2 text-sm text-white/70">
-              Today's training session is complete. {tomorrowDay ? "Your next session will build from today's signals." : "You've reached the final day!"}
-            </p>
-            <div className="mt-4 flex items-center gap-3 border-t border-white/10 pt-4 text-xs text-white/50">
-              ✓ {dayProgress.completedCount} / {dayProgress.totalActions} actions
-            </div>
-            
-            {tomorrowDay && (
-              <div className="mt-6 rounded-lg border border-white/10 bg-black/20 p-4">
-                <div className="text-xs font-medium uppercase tracking-wider text-violet-400">
-                  Up Next
-                </div>
-                <div className="mt-2 flex items-center gap-2">
-                  <span className="text-sm text-white/60">Day {tomorrowDay.day}</span>
-                  <span className="text-white/30">·</span>
-                  <span className="text-sm font-medium text-white">{tomorrowDay.stage}</span>
-                </div>
-                <p className="mt-2 text-xs leading-relaxed text-white/60">
-                  {tomorrowDay.goal}
-                </p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Mission Header - Active Training */}
-        {showMissionContent && !isDayComplete && (
-          <>
-            <div className="space-y-4">
-              <div>
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium text-white/50">
-                    DAY {currentDay.day} / 7
-                  </span>
-                  <span className="rounded-full border border-violet-500/40 bg-violet-500/10 px-3 py-0.5 text-xs font-semibold uppercase tracking-wider text-violet-300">
-                    {currentDay.stage}
-                  </span>
-                </div>
-                <h1 className="mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-                  {currentDay.goal}
-                </h1>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-white/60">
-                  {dayProgress.completedCount} / {dayProgress.totalActions} actions complete
-                </div>
-                <div className="text-xs text-white/40">
-                  Training on <span className="font-medium text-white/60">{plan.platform}</span>
-                </div>
-              </div>
-
-              <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/5">
-                <motion.div
-                  className="h-full bg-gradient-to-r from-violet-500 to-emerald-500"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${dayProgress.progressPercent}%` }}
-                  transition={{ duration: 0.5, ease: "easeOut" }}
-                />
-              </div>
-            </div>
-
-            {/* Adaptive Feedback Notice */}
-            {adaptiveSignal.explanations.length > 0 && (
-              <div className="rounded-lg border border-violet-500/20 bg-violet-500/5 p-4">
-                <div className="flex items-start gap-2">
-                  <span className="mt-0.5 inline-block h-2 w-2 shrink-0 rounded-full bg-violet-400 animate-pulse" />
-                  <div>
-                    <div className="text-xs font-medium text-violet-300">
-                      Your plan has adapted based on your feedback
-                    </div>
-                    <p className="mt-1 text-xs text-white/70">
-                      {adaptiveSignal.explanations[0]}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </>
-        )}
-
-        {/* Today's Mission Actions */}
-        {showMissionContent && !isDayComplete && (
-          <div className="space-y-6">
+        {/* Daily Mission Actions */}
+        <div className="rounded-xl border border-white/10 bg-white/[0.02] p-6">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-4">
             <div>
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-white/40">
-                Today's Mission
+              <span className="text-xs font-semibold uppercase tracking-wider text-violet-400">
+                Day {currentDay.day} Mission · {currentDay.stage}
+              </span>
+              <h2 className="mt-1 text-lg font-semibold text-white">
+                {currentDay.goal}
               </h2>
             </div>
+            <div className="text-xs text-white/50">
+              {dayProgress.completedCount} of {dayProgress.totalActions} completed ({dayProgress.progressPercent}%)
+            </div>
+          </div>
 
+          <div className="mt-6 space-y-6">
             {currentGroupedActions.map(([type, actions]) => (
               <div key={type} className="space-y-3">
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-white/40">
-                  {ACTION_LABELS[type]}
+                  {ACTION_LABELS[type]} ({actions.length})
                 </h3>
 
                 <div className="space-y-2.5">
@@ -919,106 +927,6 @@ export default function ProfilePage() {
                     const isActionable = isActionableTrainingAction(action);
 
                     return (
-                      <div
-                        key={action.id}
-                        id={action.id}
-                        className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3.5 transition ${
-                          isCompleted
-                            ? "border-emerald-500/25 bg-emerald-500/5"
-                            : "border-white/10 bg-black/20 hover:border-white/20"
-                        }`}
-                      >
-                        <div className="flex items-start gap-3">
-                          {isActionable && (
-                            <button
-                              type="button"
-                              onClick={() => toggleAction(action.id)}
-                              className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition ${
-                                isCompleted
-                                  ? "border-emerald-500 bg-emerald-500 text-black"
-                                  : "border-white/30 hover:border-white"
-                              }`}
-                            >
-                              {isCompleted && <span className="text-[10px] font-bold">✓</span>}
-                            </button>
-                          )}
-                          <div>
-                            <div className="text-xs font-semibold text-white">
-                              {action.title}
-                            </div>
-                            <div className="mt-0.5 text-[11px] text-white/60">
-                              {action.description}
-                            </div>
-                            {detail && (
-                              <div className="mt-1 text-[10px] text-violet-300/80">
-                                {detail}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="flex flex-wrap items-center gap-2">
-                          <div className="flex items-center gap-1">
-                            {FEEDBACK_OPTIONS.map(opt => {
-                              const fb = getFeedbackForAction(feedbackMeta, action.id);
-                              const isSelected = fb?.value === opt.value;
-                              const actTopic = "topic" in action && typeof action.topic === "string" ? action.topic : "general";
-                              const actTopicName = "topicName" in action && typeof action.topicName === "string" ? action.topicName : undefined;
-                              const actSubtopicId = "subtopicId" in action && typeof action.subtopicId === "string" ? action.subtopicId : undefined;
-                              const actSubtopicName = "subtopicName" in action && typeof action.subtopicName === "string" ? action.subtopicName : undefined;
-
-                              return (
-                                <button
-                                  key={opt.value}
-                                  type="button"
-                                  onClick={() =>
-                                    handleFeedbackToggle(
-                                      action.id,
-                                      actTopic,
-                                      opt.value,
-                                      {
-                                        topicName: actTopicName,
-                                        subtopicId: actSubtopicId,
-                                        subtopicName: actSubtopicName,
-                                        type: action.type,
-                                      }
-                                    )
-                                  }
-                                  className={`rounded px-1.5 py-0.5 text-[10px] font-medium transition border ${
-                                    isSelected
-                                      ? opt.activeClass
-                                      : "border-white/10 bg-white/5 text-white/50 hover:text-white"
-                                  }`}
-                                  title={opt.label}
-                                >
-                                  {opt.shortLabel}
-                                </button>
-                              );
-                            })}
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => setSelectedActionForPlaybook(action)}
-                            className="rounded-md border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] text-white/70 hover:bg-white/10 hover:text-white"
-                          >
-                            How To
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Discover Next - Curated Discovery */}
-        {showMissionContent && (
-          <div className="space-y-4">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-white/40">
-              Discover Next
-            </h2>
                       <div
                         key={action.id}
                         className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3.5 transition ${
