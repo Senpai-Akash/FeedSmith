@@ -1,5 +1,4 @@
-import { motion } from "framer-motion";
-import styles from "./SignalSection.module.css";
+
 
 export default function SignalSection() {
   return (

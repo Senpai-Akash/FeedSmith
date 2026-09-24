@@ -6,7 +6,7 @@
  * priorities, suppression guidance, and a concise summary.
  */
 
-import { SignalBlueprint, FeedPreference, ContentPreference, FeedFilter } from './types';
+import { SignalBlueprint } from './types';
 
 export interface IntelligenceResult {
   overallSignalHealth: IntelligenceHealth;

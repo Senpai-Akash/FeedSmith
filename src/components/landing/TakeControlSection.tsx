@@ -1,5 +1,4 @@
 import { motion } from "framer-motion";
-import styles from "./TakeControlSection.module.css";
 
 export default function TakeControlSection() {
   // Preference data

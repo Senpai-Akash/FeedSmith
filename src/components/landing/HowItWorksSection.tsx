@@ -1,4 +1,4 @@
-import styles from "./HowItWorksSection.module.css";
+
 
 export default function HowItWorksSection() {
   const steps = [

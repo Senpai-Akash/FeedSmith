@@ -1,5 +1,4 @@
-import { SignalBlueprint, FeedPreference, ContentPreference, FeedFilter, PriorityLevel, ClassifiedInterest, ClassifiedContentPreference } from './types';
-import { InstagramAnalysis } from '@/lib/instagram/types';
+import { SignalBlueprint, FeedPreference, ContentPreference, PriorityLevel, ClassifiedInterest, ClassifiedContentPreference } from './types';
 import { FeedAction } from './actionPlan';
 
 /**

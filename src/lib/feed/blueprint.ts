@@ -1,4 +1,4 @@
-import { FeedPreferences, FeedPreference, ContentPreference, FeedFilter, SignalBlueprint } from "./types";
+import { FeedPreferences, FeedPreference, FeedFilter, SignalBlueprint } from "./types";
 import { generateSignalSummary } from "./summary";
 
 /**

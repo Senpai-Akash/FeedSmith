@@ -1,7 +1,6 @@
 import {
   AdaptiveSignalState,
   ContentPreference,
-  CreatorRecommendation,
   FeedPreference,
   FeedTrainingDay,
   FeedTrainingPlan,
@@ -10,7 +9,6 @@ import {
   TrainingPlatform,
 } from "./types";
 import {
-  INTEREST_CREATOR_CATALOG,
   INTEREST_SEARCH_SUGGESTIONS,
 } from "./interestData";
 import {
@@ -241,15 +239,15 @@ function searchQueryFor(
 /**
  * Get creators relevant to an interest.
  */
-function creatorsFor(interest: FeedPreference): CreatorRecommendation[] {
-  return INTEREST_CREATOR_CATALOG.filter(creator =>
-    (creator.topics as readonly string[]).includes(interest.id)
-  ).map(creator => ({
-    ...creator,
-    platform: creator.platform as TrainingPlatform,
-    topics: [...creator.topics],
-  }));
-}
+// function creatorsFor(interest: FeedPreference): CreatorRecommendation[] {
+//   return INTEREST_CREATOR_CATALOG.filter(creator =>
+//     (creator.topics as readonly string[]).includes(interest.id)
+//   ).map(creator => ({
+//     ...creator,
+//     platform: creator.platform as TrainingPlatform,
+//     topics: [...creator.topics],
+//   }));
+// }
 
 /**
  * Determine the action type for creators based on platform.

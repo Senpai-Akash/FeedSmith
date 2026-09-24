@@ -1,5 +1,4 @@
 import { motion } from "framer-motion";
-import styles from "./YourFeedSection.module.css";
 
 export default function YourFeedSection() {
   // Preference data for radial visualization

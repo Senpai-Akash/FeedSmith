@@ -400,26 +400,7 @@ export default function ProfilePage() {
     return getPlaybookInstruction(selectedActionForPlaybook, plan.platform);
   }, [selectedActionForPlaybook, plan.platform]);
 
-  // Auto-advance to next incomplete day
-  const currentDayIndex = useMemo(() => {
-    const firstIncompleteIdx = plan.days.findIndex(
-      (day, idx) => dayProgress && idx === dayIndex
-        ? dayProgress.completedCount < dayProgress.totalActions
-        : !history.dailyHistory[idx]?.completed
-    );
-    return firstIncompleteIdx >= 0 ? firstIncompleteIdx : Math.min(dayIndex, plan.days.length - 1);
-  }, [plan.days, history.dailyHistory, dayIndex, dayProgress]);
 
-  useEffect(() => {
-    if (currentDayIndex !== dayIndex) {
-      setDayIndex(currentDayIndex);
-    }
-  }, [currentDayIndex, dayIndex]);
-
-  const isDayComplete = dayProgress.completedCount === dayProgress.totalActions && dayProgress.totalActions > 0;
-  const isTrainingComplete = trainingStatus === "TRAINING_COMPLETE";
-  const isFirstTimeUser = trainingStatus === "NOT_STARTED";
-  const tomorrowDay = plan.days[dayIndex + 1];
 
   return (
     <main className="min-h-screen bg-[#070709] px-4 py-8 text-white sm:px-6 lg:px-8">

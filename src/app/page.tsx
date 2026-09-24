@@ -5,11 +5,11 @@ import NavBar from "@/components/landing/NavBar";
 import { motion } from "framer-motion";
 import { useRef, useEffect } from "react";
 import OrbitVisualization from '@/components/landing/OrbitVisualization';
-import SignalSection from '@/components/landing/SignalSection';
-import TakeControlSection from '@/components/landing/TakeControlSection';
-import YourFeedSection from '@/components/landing/YourFeedSection';
-import HowItWorksSection from '@/components/landing/HowItWorksSection';
-import styles from '@/components/landing/OrbitVisualization.module.css';
+// Commented out unused components to clean up lint warnings
+// import SignalSection from '@/components/landing/SignalSection';
+// import TakeControlSection from '@/components/landing/TakeControlSection';
+// import YourFeedSection from '@/components/landing/YourFeedSection';
+// import HowItWorksSection from '@/components/landing/HowItWorksSection';
 
 const MoltenMetal = dynamic(
   () => import("@/components/moltenmetal/MoltenMetal"),
@@ -170,7 +170,7 @@ export default function Home() {
             >
 
                 {/* Orbital system – integrated visualization */}
-                <div className={styles.orbitSystem} ref={orbitRef}>
+                <div className="orbitSystem relative w-full h-full" ref={orbitRef}>
                   <OrbitVisualization />
                   <div className="absolute inset-[25%] rounded-full border border-white/10" />
                   {/* Central element */}

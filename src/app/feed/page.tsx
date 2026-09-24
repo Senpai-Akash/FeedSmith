@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { loadPreferences } from "@/lib/feed/preferences";
 import { recommendFeed } from "@/lib/feed/recommendation";
 import { MOCK_CONTENT } from "@/lib/feed/mockContent";
@@ -82,10 +83,13 @@ export default function FeedPage() {
               >
                 <div className="flex flex-col md:flex-row md:items-start gap-4">
                   {item.content.image && (
-                    <img
+                    <Image
                       src={item.content.image}
                       alt={item.content.title}
+                      width={128}
+                      height={96}
                       className={idx === 0 ? "w-32 h-auto object-cover rounded" : "w-32 h-auto object-cover rounded"}
+                      priority={idx === 0}
                     />
                   )}
                   <div className="flex">
