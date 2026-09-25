@@ -130,7 +130,7 @@ export default function Home() {
                 clearer, more intentional feed.
               </motion.p>
 
-              <motion.a
+              <motion.div
                 initial={{
                   opacity: 0,
                   y: 20,
@@ -143,12 +143,26 @@ export default function Home() {
                   duration: 0.8,
                   delay: 0.3,
                 }}
-                href="/build"
-                className="mt-10 inline-flex items-center rounded-full bg-white px-7 py-3.5 text-sm font-medium text-black transition hover:scale-[1.03]"
+                className="mt-10 flex flex-wrap gap-4"
               >
-                Build my feed
-                <span className="ml-2">→</span>
-              </motion.a>
+                <a
+                  href="/build"
+                  className="inline-flex items-center rounded-full bg-white px-7 py-3.5 text-sm font-medium text-black transition hover:scale-[1.03]"
+                >
+                  Build my feed
+                  <span className="ml-2">→</span>
+                </a>
+                <a
+                  href="/feed"
+                  className="inline-flex items-center rounded-full border border-white/20 px-7 py-3.5 text-sm font-medium text-white/70 transition hover:border-white/40 hover:text-white"
+                >
+                  Today's mission
+                </a>
+              </motion.div>
+
+              <p className="mt-6 text-xs text-white/40">
+                Already built your signal? Go directly to today's training.
+              </p>
 
             </div>
 

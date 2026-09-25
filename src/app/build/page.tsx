@@ -163,7 +163,7 @@ export default function BuildPage() {
 
       <section className="relative z-10 min-h-screen bg-black/25 px-6 py-10 md:py-14">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-10">
-          <header>
+                    <header>
             <p className="text-xs font-medium uppercase tracking-[0.3em] text-white/45">
               {step.toString().padStart(2, "0")} / Build your feed
             </p>
@@ -174,24 +174,34 @@ export default function BuildPage() {
               Tell FeedSmith what deserves your attention.
             </p>
 
-            <div className="mt-8 grid grid-cols-[auto_1fr_auto_1fr_auto] items-center gap-3 text-xs font-medium uppercase tracking-[0.22em] text-white/35">
-              <span className={step === 1 ? "text-violet-300" : ""}>01</span>
-              <span className="h-px bg-white/15" />
-              <span className={step === 2 ? "text-violet-300" : ""}>02</span>
-              <span className="h-px bg-white/15" />
-              <span className={step === 3 ? "text-violet-300" : ""}>03</span>
-            </div>
-            <div className="mt-3 flex justify-between text-[0.68rem] font-medium uppercase tracking-[0.2em] text-white/35">
-              <span>Interests</span>
-              <span>Content</span>
-              <span>Filters</span>
+            {/* Progress indicator with purpose statements */}
+            <div className="mt-8 space-y-3">
+              <div className="grid grid-cols-[auto_1fr_auto_1fr_auto] items-center gap-3 text-xs font-medium uppercase tracking-[0.22em] text-white/35">
+                <span className={step === 1 ? "text-violet-300" : step > 1 ? "text-white/60" : ""}>01</span>
+                <span className={`h-px ${step > 1 ? "bg-white/30" : "bg-white/15"}`} />
+                <span className={step === 2 ? "text-violet-300" : step > 2 ? "text-white/60" : ""}>02</span>
+                <span className={`h-px ${step > 2 ? "bg-white/30" : "bg-white/15"}`} />
+                <span className={step === 3 ? "text-violet-300" : ""}>03</span>
+              </div>
+              <div className="flex justify-between text-[0.68rem] font-medium uppercase tracking-[0.2em] text-white/35">
+                <span className={step === 1 ? "text-white/70" : ""}>Interests</span>
+                <span className={step === 2 ? "text-white/70" : ""}>Content</span>
+                <span className={step === 3 ? "text-white/70" : ""}>Filters</span>
+              </div>
+              {/* Progress bar */}
+              <div className="h-1 w-full max-w-xs overflow-hidden rounded-full bg-white/10">
+                <div
+                  className="h-full rounded-full bg-violet-500 transition-all duration-500"
+                  style={{ width: `${(step / 3) * 100}%` }}
+                />
+              </div>
             </div>
           </header>
 
           <div className="grid gap-10 lg:grid-cols-[minmax(0,0.95fr)_minmax(360px,1.05fr)] lg:items-center">
             <div className="rounded-lg border border-white/10 bg-black/30 p-5 backdrop-blur-md md:p-7">
               <AnimatePresence mode="wait">
-                {step === 1 && (
+                                {step === 1 && (
                   <motion.div
                     key="interests"
                     initial={{ opacity: 0, y: 12 }}
@@ -201,9 +211,15 @@ export default function BuildPage() {
                     className="space-y-7"
                   >
                     <div>
-                      <h2 className="text-2xl font-medium">Choose interests</h2>
+                      {/* Step purpose with user-focused question */}
+                      <p className="text-xs font-medium uppercase tracking-[0.2em] text-violet-400 mb-2">
+                        Step 1 — Your Interests
+                      </p>
+                      <h2 className="text-2xl font-medium">
+                        What do you want more of?
+                      </h2>
                       <p className="mt-2 text-sm leading-6 text-white/45">
-                        Select the signals you want FeedSmith to prioritize.
+                        Tell FeedSmith what you want to see. Stronger interests influence your training plan more heavily.
                       </p>
                     </div>
 
@@ -274,11 +290,15 @@ export default function BuildPage() {
                     className="space-y-7"
                   >
                     <div>
+                      {/* Step purpose with user-focused question */}
+                      <p className="text-xs font-medium uppercase tracking-[0.2em] text-violet-400 mb-2">
+                        Step 2 — Content Style
+                      </p>
                       <h2 className="text-2xl font-medium">
-                        Tune content style
+                        How do you want that content?
                       </h2>
                       <p className="mt-2 text-sm leading-6 text-white/45">
-                        Adjust how strongly each format should shape your feed.
+                        Adjust how you want your interests to appear — educational, entertaining, news, tutorials, or discussions.
                       </p>
                     </div>
 
@@ -323,11 +343,15 @@ export default function BuildPage() {
                     className="space-y-7"
                   >
                     <div>
+                      {/* Step purpose with user-focused question */}
+                      <p className="text-xs font-medium uppercase tracking-[0.2em] text-violet-400 mb-2">
+                        Step 3 — Content Filters
+                      </p>
                       <h2 className="text-2xl font-medium">
-                        Set optional filters
+                        What do you want less of?
                       </h2>
                       <p className="mt-2 text-sm leading-6 text-white/45">
-                        Pick anything you want FeedSmith to reduce.
+                        Identify content patterns you want to reduce. Filters help shape your signal more intentionally.
                       </p>
                     </div>
 
