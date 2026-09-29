@@ -14,7 +14,7 @@ export default function NavBar() {
   ];
 
   return (
-    <header className="sticky top-0 z-50 bg-white/30 backdrop-blur-md border-b border-gray-200 shadow-sm rounded-3xl w-7.5xl mx-auto">
+      <header className="header-nav">
       {/* Flex container for the brand and navigation */}
       <div className="flex items-center justify-between px-6 py-3">
         {/* Brand/logo – replace with an actual logo component or image as needed */}

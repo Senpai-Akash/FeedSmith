@@ -43,7 +43,7 @@ export function SignalBlueprintReview({
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="rounded-lg border border-white/10 bg-black/30 p-6 backdrop-blur-md"
+        className="card-surface"
       >
         <div className="flex items-center gap-2 mb-4">
           <div className="h-2 w-2 rounded-full bg-violet-400" />
@@ -56,7 +56,7 @@ export function SignalBlueprintReview({
             blueprint.primaryInterests.map((interest) => (
               <div
                 key={interest.id}
-                className="flex items-center justify-between rounded-md bg-white/5 p-3"
+                 className="card-item"
               >
                 <span className="text-white">{interest.name}</span>
                 <span className="text-xs font-medium text-violet-300">
@@ -76,7 +76,7 @@ export function SignalBlueprintReview({
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="rounded-lg border border-white/10 bg-black/30 p-6 backdrop-blur-md"
+           className="card-surface"
         >
           <div className="flex items-center gap-2 mb-4">
             <div className="h-2 w-2 rounded-full bg-indigo-400" />
@@ -88,7 +88,7 @@ export function SignalBlueprintReview({
             {blueprint.secondaryInterests.map((interest) => (
               <div
                 key={interest.id}
-                className="flex items-center justify-between rounded-md bg-white/5 p-3"
+                 className="card-item"
               >
                 <span className="text-white/80">{interest.name}</span>
                 <span className="text-xs font-medium text-indigo-300">
@@ -105,7 +105,7 @@ export function SignalBlueprintReview({
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="rounded-lg border border-white/10 bg-black/30 p-6 backdrop-blur-md"
+         className="card-surface"
       >
         <h3 className="text-sm font-medium uppercase tracking-[0.1em] text-white/60 mb-4">
           Ready for Day 1?
@@ -115,7 +115,7 @@ export function SignalBlueprintReview({
         </p>
         <button
           onClick={onStartTraining}
-          className="inline-flex items-center rounded-full bg-white px-8 py-4 text-sm font-medium text-black transition hover:scale-[1.03] w-full justify-center sm:w-auto"
+           className="btn-primary"
         >
           Start Day 1
           <span className="ml-2">→</span>
