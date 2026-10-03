@@ -96,7 +96,6 @@ export function loadTrainingHistoryMeta(): TrainingHistoryMeta {
     return createTrainingHistoryMeta();
   } catch (error) {
     console.error("Failed to load training history", error);
-    return createTrainingHistoryMeta();
   }
 }
 
@@ -106,61 +105,13 @@ export function saveTrainingHistoryMeta(meta: TrainingHistoryMeta): void {
   try {
     localStorage.setItem(TRAINING_HISTORY_STORAGE_KEY, JSON.stringify(meta));
   } catch (error) {
-    console.error("Failed to save training history", error);
-  }
-}
-
-/**
- * Update the persisted training‑history meta based on a completed plan.
- *
- * NOTE: The full implementation is beyond the scope of the current tests.
- * This simplified version returns the provided meta unchanged, ensuring the
- * module remains syntactically correct and does not interfere with other
-export function updateTrainingHistoryMeta(
-  currentMeta: TrainingHistoryMeta,
-  plan: FeedTrainingPlan,
-  completed: Record<string, boolean>,
-  now: Date = new Date()
-): TrainingHistoryMeta {
-  // Placeholder: a real implementation would merge `plan` progress into
-  // `currentMeta`. For the purposes of the existing unit tests, returning the
-  // input meta unchanged is sufficient.
-  return currentMeta;
-  // `currentMeta`. For the purposes of the existing unit tests, returning the
-  // input meta is sufficient.
-  return currentMeta;
-}
-
+   console.error("Failed to save training history", error);
+ }
 export function clearTrainingHistoryMeta(): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem(TRAINING_HISTORY_STORAGE_KEY);
-}
-
-  return {
-    version: 1,
-    startedAt: currentMeta.startedAt ?? (nextDays.length > 0 ? timestamp : undefined),
-    updatedAt: timestamp,
-    days: nextDays,
-  };
-}
-
-export function deriveTrainingHistory(
-  plan: FeedTrainingPlan,
-  completed: Record<string, boolean>,
-  meta: TrainingHistoryMeta
-): TrainingHistory {
-  const completedDays = plan.days.filter(day => isDayComplete(day, completed)).length;
-  const totalActions = plan.days.reduce(
-    (sum, day) => sum + getActionableActions(day).length,
-    0
-  );
-  const completedActions = plan.days.reduce(
-    (sum, day) =>
-      sum + getActionableActions(day).filter(action => completed[action.id]).length,
-    0
-  );
-  const currentDay = getCurrentTrainingDay(plan, completed);
-  const status = getTrainingStatus(plan, completed);
+ }
+  // (Removed stray redundant calculations)
 
   return {
     startedAt: meta.startedAt,
@@ -288,7 +239,7 @@ function getCurrentTrainingDay(
   return firstIncomplete?.day ?? plan.days.length;
 }
 
-function getTrainingStatus(
+export function getTrainingStatus(
   plan: FeedTrainingPlan,
   completed: Record<string, boolean>
 ): TrainingStatus {
@@ -393,4 +344,101 @@ export function calculateConsistency(
     percentage,
     message,
   };
+}
+
+/**
+ * Derive a full {@link TrainingHistory} object from a training plan and the
+ * map of completed actions.
+ */
+export function deriveTrainingHistory(
+  plan: FeedTrainingPlan,
+  completed: Record<string, boolean>,
+  now: Date = new Date()
+): TrainingHistory {
+  const meta = loadTrainingHistoryMeta();
+
+  // Determine the current day – the first day that is not completely finished.
+  const firstIncompleteIdx = plan.days.findIndex(day => !isDayComplete(day, completed));
+  const currentDay = firstIncompleteIdx === -1 ? plan.days.length : firstIncompleteIdx + 1;
+
+  const completedDays = plan.days.filter(day => isDayComplete(day, completed)).length;
+
+  const totalActions = plan.days.reduce((sum, d) => sum + getActionableActions(d).length, 0);
+  const completedActions = Object.values(completed).filter(Boolean).length;
+
+  const dailyHistory: DailyHistory[] = plan.days.map((day, idx) => {
+    const dayNumber = idx + 1;
+    const actionable = getActionableActions(day);
+    const completedCount = actionable.filter(a => completed[a.id]).length;
+    const metaEntry = meta.days.find(m => m.day === dayNumber) || {};
+    return {
+      day: dayNumber,
+      stage: day.stage,
+      completed: isDayComplete(day, completed),
+      completedActions: completedCount,
+      totalActions: actionable.length,
+      completedAt: metaEntry.completedAt,
+    } as DailyHistory;
+  });
+
+  const status = getTrainingStatus(plan, completed);
+
+  return {
+    startedAt: meta.startedAt,
+    currentDay,
+    completedDays,
+    totalActions,
+    completedActions,
+    dailyHistory,
+    status,
+  };
+}
+
+/**
+ * Calculate overall progress percentages for days and actions.
+ */
+export function calculateOverallProgress(history: TrainingHistory): OverallProgress {
+  const totalDays = history.dailyHistory ? history.dailyHistory.length : 0;
+  const daysPercentage = totalDays ? Math.round((history.completedDays / totalDays) * 100) : 0;
+  const actionsPercentage = history.totalActions
+    ? Math.round((history.completedActions / history.totalActions) * 100)
+    : 0;
+
+  return {
+    daysCompleted: history.completedDays,
+    totalDays,
+    daysPercentage,
+    actionsCompleted: history.completedActions,
+    totalActions: history.totalActions,
+    actionsPercentage,
+  };
+}
+
+/**
+ * Summarise how many times each topic has been reinforced through completed
+ * actions.
+ */
+export function calculateTopicsReinforced(
+  plan: FeedTrainingPlan,
+  completed: Record<string, boolean>
+): TopicReinforcement[] {
+  const map: Record<string, { displayName: string; count: number }> = {};
+  for (const day of plan.days) {
+    for (const action of day.actions) {
+      if (!isActionableTrainingAction(action)) continue;
+      if (!completed[action.id]) continue;
+      const topic = (action as any).topic as string | undefined;
+      const displayName = (action as any).topicName as string | undefined;
+      if (!topic) continue;
+      if (!map[topic]) {
+        map[topic] = { displayName: displayName ?? topic, count: 0 };
+      }
+      map[topic].count++;
+    }
+  }
+  return Object.entries(map).map(([topic, data]) => ({
+    topic,
+    displayName: data.displayName,
+    actionCount: data.count,
+  }));
 }

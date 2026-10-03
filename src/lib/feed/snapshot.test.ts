@@ -3,7 +3,7 @@ import assert from "node:assert";
 import { createSignalSnapshot, compareSnapshots, deriveLongTermInsights } from "./snapshot";
 import { saveTrainingHistoryMeta } from "./history";
 
-function setMockTrainingMeta(meta) {
+function setMockTrainingMeta(meta: TrainingHistoryMeta) {
   // In the node test environment, the history util will bail out early, but we keep the call for API compatibility.
   saveTrainingHistoryMeta(meta);
 }
