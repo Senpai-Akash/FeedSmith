@@ -156,12 +156,12 @@ export default function Home() {
                   href="/feed"
                   className="inline-flex items-center rounded-full border border-white/20 px-7 py-3.5 text-sm font-medium text-white/70 transition hover:border-white/40 hover:text-white"
                 >
-                  Today's mission
+                  Today&apos;s mission
                 </a>
               </motion.div>
 
               <p className="mt-6 text-xs text-white/40">
-                Already built your signal? Go directly to today's training.
+                Already built your signal? Go directly to today&apos;s training.
               </p>
 
             </div>

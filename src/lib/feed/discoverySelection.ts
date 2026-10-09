@@ -6,7 +6,7 @@ import {
   CreatorRecommendation,
 } from "./types";
 import { DISCOVERY_TOPICS } from "./discoveryLibrary";
-import { INTEREST_CREATOR_CATALOG } from "./interestData";
+import { INTEREST_CREATOR_CATALOG, INTEREST_SEARCH_SUGGESTIONS } from "./interestData";
 export { generatePersonalizedDiscovery } from "./discoveryEngine";
 
 /**
@@ -101,14 +101,24 @@ export function selectSearchQuery(
   const topic = getDiscoveryTopic(interest.id);
 
   if (!topic || topic.searches.length === 0) {
-    return `${interest.name} content`;
+    const suggestions = INTEREST_SEARCH_SUGGESTIONS[interest.id] ?? [
+      `${interest.name} tutorials`,
+      `${interest.name} explained`,
+      `${interest.name} deep dive`,
+    ];
+    if (dayIndex < 2) return suggestions[0] ?? `${interest.name} content`;
+    if (dayIndex < 4) return suggestions[Math.min(1, suggestions.length - 1)] ?? suggestions[0];
+    if (dayIndex < 6) return suggestions[Math.min(2, suggestions.length - 1)] ?? suggestions[0];
+    return suggestions[0] ?? `${interest.name} content`;
   }
 
   const preferredSpecificity: DiscoverySearchQuery["specificity"] =
     dayIndex < 2 ? "broad" : dayIndex < 4 ? "specific" : dayIndex < 6 ? "discovery" : "specific";
 
   const preferredQueries = topic.searches.filter(query => query.specificity === preferredSpecificity);
-  const orderedCandidates = (preferredQueries.length > 0 ? preferredQueries : topic.searches)
+  const candidatePool = preferredQueries.length > 0 ? preferredQueries : topic.searches;
+
+  const orderedCandidates = candidatePool
     .map((query, index) => ({
       query,
       score: scoreSearchQuery(query, interest, dayIndex, contentPreferences, subtopicDeltas),
@@ -116,7 +126,15 @@ export function selectSearchQuery(
     }))
     .sort((a, b) => b.score - a.score || a.index - b.index);
 
-  return orderedCandidates[0].query.query;
+  // Rotate between top candidates across consecutive days of the same stage
+  // Day 1 (index 0) gets top candidate (0); Day 2 (index 1) gets second candidate if available
+  // Day 3 (index 2) gets top candidate (0); Day 4 (index 3) gets second candidate if available
+  // Day 5 (index 4) gets top candidate (0); Day 6 (index 5) gets second candidate if available
+  // Day 7 (index 6) gets top candidate (0) for maintenance
+  const isSecondDayOfStage = dayIndex % 2 === 1;
+  const pickIndex = isSecondDayOfStage && orderedCandidates.length > 1 ? 1 : 0;
+
+  return orderedCandidates[pickIndex].query.query;
 }
 
 /**

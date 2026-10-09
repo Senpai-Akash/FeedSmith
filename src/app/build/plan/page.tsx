@@ -18,14 +18,13 @@
  *   - All actions are keyboard accessible and have visible focus states.
  */
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { loadPreferences } from "@/lib/feed/preferences";
 import { generateSignalBlueprint } from "@/lib/feed/blueprint";
 import { generateFeedTrainingPlan } from "@/lib/feed/training";
 import {
   FeedTrainingDay,
   TrainingAction,
-  TrainingActionType,
 } from "@/lib/feed/types";
 
 /** Simple utility to generate a human‑readable plain‑text version of a plan. */
@@ -52,17 +51,13 @@ function generatePlainText(plan: { summary: string; days: FeedTrainingDay[] }): 
 }
 
 export default function ShareablePlanPage() {
-  const [plan, setPlan] = useState<{ summary: string; days: FeedTrainingDay[] } | null>(
-    null,
-  );
-
-  // Load preferences and generate the plan once on mount.
-  useEffect(() => {
+  const [plan] = useState<{ summary: string; days: FeedTrainingDay[] } | null>(() => {
+    if (typeof window === "undefined") return null;
     const prefs = loadPreferences();
     const blueprint = generateSignalBlueprint(prefs);
     const generated = generateFeedTrainingPlan(blueprint);
-    setPlan({ summary: generated.summary, days: generated.days });
-  }, []);
+    return { summary: generated.summary, days: generated.days };
+  });
 
   if (!plan) {
     return <div className="p-8 text-white">Loading plan…</div>;
@@ -78,7 +73,7 @@ export default function ShareablePlanPage() {
           text: plan.summary,
         });
         return;
-      } catch (e) {
+      } catch {
         // fall back to copy if sharing fails
       }
     }
@@ -139,7 +134,7 @@ export default function ShareablePlanPage() {
               <p className="text-sm text-white/70">{day.goal}</p>
             </header>
             <ul className="list-disc list-inside space-y-1">
-              {day.actions.map((action, idx) => (
+              {day.actions.map(action => (
                 <li key={action.id}>
                   <strong>{action.title}</strong>: {action.description}
                 </li>

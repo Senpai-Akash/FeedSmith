@@ -164,9 +164,11 @@ function allocateCounts(
   );
 
   // Distribute remaining budget to highest-priority interests
+  let remainderIndex = 0;
   while (assigned < total) {
-    ordered[(assigned - allocations.length) % ordered.length].base += 1;
+    ordered[remainderIndex % ordered.length].base += 1;
     assigned += 1;
+    remainderIndex += 1;
   }
 
   // Remove excess if somehow we overallocated
@@ -207,33 +209,37 @@ function searchQueryFor(
       }
     }
 
-    return selectSearchQuery(interest, dayIndex, contentPreferences);
+    if (topic && rawQueries.length > 0) {
+      return selectSearchQuery(interest, dayIndex, contentPreferences, subtopicDeltas);
+    }
   } catch {
-    // Fallback to legacy suggestions
-    const suggestions = INTEREST_SEARCH_SUGGESTIONS[interest.id] ?? [
-      `${interest.name} tutorials`,
-      `${interest.name} explained`,
-      `${interest.name} creators`,
-    ];
+    // Fallback to suggestions below
+  }
 
-    // Broad stage (days 0-1)
-    if (dayIndex < 2) {
-      return suggestions[0] ?? `${interest.name}`;
-    }
+  // Fallback to structured suggestions when discovery searches are unavailable
+  const suggestions = INTEREST_SEARCH_SUGGESTIONS[interest.id] ?? [
+    `${interest.name} tutorials`,
+    `${interest.name} explained`,
+    `${interest.name} deep dive`,
+  ];
 
-    // Specific stage (days 2-3)
-    if (dayIndex < 4) {
-      return suggestions[Math.min(1, suggestions.length - 1)] ?? suggestions[0];
-    }
-
-    // Discovery stage (days 4-5)
-    if (dayIndex < 6) {
-      return suggestions[Math.min(2, suggestions.length - 1)] ?? suggestions[0];
-    }
-
-    // Maintenance (day 6)
+  // Broad stage (days 0-1)
+  if (dayIndex < 2) {
     return suggestions[0] ?? `${interest.name}`;
   }
+
+  // Specific stage (days 2-3)
+  if (dayIndex < 4) {
+    return suggestions[Math.min(1, suggestions.length - 1)] ?? suggestions[0];
+  }
+
+  // Discovery stage (days 4-5)
+  if (dayIndex < 6) {
+    return suggestions[Math.min(2, suggestions.length - 1)] ?? suggestions[0];
+  }
+
+  // Maintenance (day 6)
+  return suggestions[0] ?? `${interest.name}`;
 }
 
 /**
@@ -563,7 +569,15 @@ export function generateFeedTrainingPlan(
 ): FeedTrainingPlan {
   const subtopicDeltas = adaptiveSignal?.subtopicDeltas ?? {};
 
-  const baseInterests = getAllInterests(blueprint);
+  const rawBaseInterests = getAllInterests(blueprint);
+  const suppressedFilters = new Set(
+    (blueprint.suppressed ?? []).map(f => f.toLowerCase().trim()).filter(Boolean)
+  );
+  // Exclude interests that the user explicitly chose to suppress
+  const baseInterests = rawBaseInterests.filter(
+    i => !suppressedFilters.has(i.id.toLowerCase()) && !suppressedFilters.has(i.name.toLowerCase())
+  );
+
   const interests = adaptiveSignal
     ? baseInterests.map(interest => {
         const adapted = adaptiveSignal.topics[interest.id];

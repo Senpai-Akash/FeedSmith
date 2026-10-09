@@ -1,7 +1,6 @@
 "use client";
 
 import { motion } from "framer-motion";
-import Link from "next/link";
 import { SignalBlueprint } from "@/lib/feed/types";
 
 interface SignalBlueprintReviewProps {
@@ -34,7 +33,7 @@ export function SignalBlueprintReview({
           Your signal is ready.
         </h1>
         <p className="text-base text-white/60 max-w-2xl mx-auto">
-          Here's what FeedSmith will use to build your training plan.
+          Here&apos;s what FeedSmith will use to build your training plan.
         </p>
       </div>
 

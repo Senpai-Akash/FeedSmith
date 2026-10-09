@@ -96,6 +96,7 @@ export function loadTrainingHistoryMeta(): TrainingHistoryMeta {
     return createTrainingHistoryMeta();
   } catch (error) {
     console.error("Failed to load training history", error);
+    return createTrainingHistoryMeta();
   }
 }
 
@@ -105,13 +106,82 @@ export function saveTrainingHistoryMeta(meta: TrainingHistoryMeta): void {
   try {
     localStorage.setItem(TRAINING_HISTORY_STORAGE_KEY, JSON.stringify(meta));
   } catch (error) {
-   console.error("Failed to save training history", error);
- }
+    console.error("Failed to save training history", error);
+  }
+}
+
 export function clearTrainingHistoryMeta(): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem(TRAINING_HISTORY_STORAGE_KEY);
- }
-  // (Removed stray redundant calculations)
+}
+
+export function updateTrainingHistoryMeta(
+  currentMeta: TrainingHistoryMeta,
+  plan: FeedTrainingPlan,
+  completed: Record<string, boolean>,
+  now: Date = new Date()
+): TrainingHistoryMeta {
+  const timestamp = now.toISOString();
+  const existingDays = new Map(currentMeta.days.map(day => [day.day, day]));
+  const startedDayNumbers = new Set<number>();
+
+  for (const day of plan.days) {
+    const actionable = getActionableActions(day);
+    const completedActions = actionable.filter(action => completed[action.id]);
+
+    if (completedActions.length > 0) {
+      startedDayNumbers.add(day.day);
+    }
+  }
+
+  const nextDays = plan.days.flatMap(day => {
+    const existing = existingDays.get(day.day);
+    const actionable = getActionableActions(day);
+    const totalActions = actionable.length;
+    const completedActions = actionable.filter(action => completed[action.id]).length;
+    const hasStarted = startedDayNumbers.has(day.day) || Boolean(existing?.startedAt);
+
+    if (!hasStarted) return [];
+
+    const completedAt =
+      totalActions > 0 && completedActions === totalActions
+        ? existing?.completedAt ?? timestamp
+        : undefined;
+
+    return [
+      {
+        day: day.day,
+        startedAt: existing?.startedAt ?? timestamp,
+        completedAt,
+      },
+    ];
+  });
+
+  return {
+    version: 1,
+    startedAt: currentMeta.startedAt ?? (nextDays.length > 0 ? timestamp : undefined),
+    updatedAt: timestamp,
+    days: nextDays,
+  };
+}
+
+export function deriveTrainingHistory(
+  plan: FeedTrainingPlan,
+  completed: Record<string, boolean>,
+  meta: TrainingHistoryMeta = loadTrainingHistoryMeta()
+): TrainingHistory {
+  const completedDays = plan.days.filter(day => isDayComplete(day, completed)).length;
+  const totalActions = plan.days.reduce(
+    (sum, day) => sum + getActionableActions(day).length,
+    0
+  );
+  const completedActions = plan.days.reduce(
+    (sum, day) =>
+      sum + getActionableActions(day).filter(action => completed[action.id]).length,
+    0
+  );
+  const currentDay = getCurrentTrainingDay(plan, completed);
+  const status = getTrainingStatus(plan, completed);
 
   return {
     startedAt: meta.startedAt,
@@ -142,7 +212,7 @@ export function calculateOverallProgress(history: TrainingHistory): OverallProgr
 }
 
 export function calculateConsistency(
-  history: TrainingHistory,
+  history: TrainingHistory | TrainingHistoryMeta,
   now: Date = new Date()
 ): ConsistencyMetric {
   if (!history.startedAt) {
@@ -154,28 +224,49 @@ export function calculateConsistency(
     };
   }
 
-  const startedAtMs = Date.parse(history.startedAt);
-  const elapsedTrainingDays = Number.isFinite(startedAtMs)
-    ? Math.min(
-        history.dailyHistory.length,
-        Math.max(1, Math.ceil((now.getTime() - startedAtMs) / DAY_IN_MS))
-      )
-    : 1;
-  const plannedDays = Math.max(
-    elapsedTrainingDays,
-    history.dailyHistory.filter(day => day.completedActions > 0 || day.completed).length
-  );
-  const completedPlannedDays = history.dailyHistory
-    .filter(day => day.day <= plannedDays)
-    .filter(day => day.completed).length;
+  const startDate = new Date(history.startedAt);
+  const elapsedMs = now.getTime() - startDate.getTime();
+  const elapsedDaysFromDate = Math.max(1, Math.floor(elapsedMs / DAY_IN_MS) + 1);
+
+  let completedPlannedDays = 0;
+  let elapsedTrainingDays = elapsedDaysFromDate;
+
+  if ("days" in history) {
+    completedPlannedDays = history.days.filter(d => Boolean(d.completedAt)).length;
+  } else {
+    const totalDays = history.dailyHistory.length;
+    elapsedTrainingDays = Math.min(totalDays, elapsedDaysFromDate);
+    const plannedDays = Math.max(
+      elapsedTrainingDays,
+      history.dailyHistory.filter(day => day.completedActions > 0 || day.completed).length
+    );
+    completedPlannedDays = history.dailyHistory
+      .filter(day => day.day <= plannedDays)
+      .filter(day => day.completed).length;
+    elapsedTrainingDays = plannedDays;
+  }
+
   const percentage =
-    plannedDays > 0 ? Math.round((completedPlannedDays / plannedDays) * 100) : 0;
+    elapsedTrainingDays > 0
+      ? Math.min(100, Math.round((completedPlannedDays / elapsedTrainingDays) * 100))
+      : 0;
+
+  let message: string;
+  if (percentage >= 90) {
+    message = "Excellent consistency! Keep it up.";
+  } else if (percentage >= 70) {
+    message = "Good consistency. You're staying on track.";
+  } else if (percentage >= 40) {
+    message = "Fair consistency. Aim for more regular training.";
+  } else {
+    message = "Low consistency. Try to train more regularly.";
+  }
 
   return {
     completedPlannedDays,
-    elapsedTrainingDays: plannedDays,
+    elapsedTrainingDays,
     percentage,
-    message: `${completedPlannedDays} of the last ${plannedDays} planned days completed.`,
+    message,
   };
 }
 
@@ -290,155 +381,4 @@ function isTrainingHistoryMeta(value: unknown): value is TrainingHistoryMeta {
         typeof dayCandidate.completedAt === "string")
     );
   });
-}
-
-/**
- * Calculate a consistency metric based on the persisted training history.
- *
- * `completedPlannedDays` – number of training days that have a `completedAt`
- * timestamp (i.e., the user actually completed the day).
- * `elapsedTrainingDays` – number of days that have elapsed since the first day
- * the user started training (based on `startedAt`). This is calculated using
- * the same DAY_IN_MS constant used elsewhere in this file.
- * `percentage` – the ratio of completed days to elapsed days, rounded to the
- * nearest integer.
- * `message` – a human‑readable hint that varies based on the percentage.
- */
-export function calculateConsistency(
-  history: TrainingHistoryMeta,
-  now: Date = new Date()
-): ConsistencyMetric {
-  // If training has never started we cannot compute consistency.
-  if (!history.startedAt) {
-    return {
-      completedPlannedDays: 0,
-      elapsedTrainingDays: 0,
-      percentage: 0,
-      message: "Start Day 1 to begin tracking your consistency.",
-    };
-  }
-
-  const startDate = new Date(history.startedAt);
-  const elapsedMs = now.getTime() - startDate.getTime();
-  // At least one day has elapsed once training has started.
-  const elapsedTrainingDays = Math.max(1, Math.floor(elapsedMs / DAY_IN_MS) + 1);
-
-  const completedPlannedDays = history.days.filter(d => Boolean(d.completedAt)).length;
-
-  const percentage = Math.round((completedPlannedDays / elapsedTrainingDays) * 100);
-
-  let message: string;
-  if (percentage >= 90) {
-    message = "Excellent consistency! Keep it up.";
-  } else if (percentage >= 70) {
-    message = "Good consistency. You're staying on track.";
-  } else if (percentage >= 40) {
-    message = "Fair consistency. Aim for more regular training.";
-  } else {
-    message = "Low consistency. Try to train more regularly.";
-  }
-
-  return {
-    completedPlannedDays,
-    elapsedTrainingDays,
-    percentage,
-    message,
-  };
-}
-
-/**
- * Derive a full {@link TrainingHistory} object from a training plan and the
- * map of completed actions.
- */
-export function deriveTrainingHistory(
-  plan: FeedTrainingPlan,
-  completed: Record<string, boolean>,
-  now: Date = new Date()
-): TrainingHistory {
-  const meta = loadTrainingHistoryMeta();
-
-  // Determine the current day – the first day that is not completely finished.
-  const firstIncompleteIdx = plan.days.findIndex(day => !isDayComplete(day, completed));
-  const currentDay = firstIncompleteIdx === -1 ? plan.days.length : firstIncompleteIdx + 1;
-
-  const completedDays = plan.days.filter(day => isDayComplete(day, completed)).length;
-
-  const totalActions = plan.days.reduce((sum, d) => sum + getActionableActions(d).length, 0);
-  const completedActions = Object.values(completed).filter(Boolean).length;
-
-  const dailyHistory: DailyHistory[] = plan.days.map((day, idx) => {
-    const dayNumber = idx + 1;
-    const actionable = getActionableActions(day);
-    const completedCount = actionable.filter(a => completed[a.id]).length;
-    const metaEntry = meta.days.find(m => m.day === dayNumber) || {};
-    return {
-      day: dayNumber,
-      stage: day.stage,
-      completed: isDayComplete(day, completed),
-      completedActions: completedCount,
-      totalActions: actionable.length,
-      completedAt: metaEntry.completedAt,
-    } as DailyHistory;
-  });
-
-  const status = getTrainingStatus(plan, completed);
-
-  return {
-    startedAt: meta.startedAt,
-    currentDay,
-    completedDays,
-    totalActions,
-    completedActions,
-    dailyHistory,
-    status,
-  };
-}
-
-/**
- * Calculate overall progress percentages for days and actions.
- */
-export function calculateOverallProgress(history: TrainingHistory): OverallProgress {
-  const totalDays = history.dailyHistory ? history.dailyHistory.length : 0;
-  const daysPercentage = totalDays ? Math.round((history.completedDays / totalDays) * 100) : 0;
-  const actionsPercentage = history.totalActions
-    ? Math.round((history.completedActions / history.totalActions) * 100)
-    : 0;
-
-  return {
-    daysCompleted: history.completedDays,
-    totalDays,
-    daysPercentage,
-    actionsCompleted: history.completedActions,
-    totalActions: history.totalActions,
-    actionsPercentage,
-  };
-}
-
-/**
- * Summarise how many times each topic has been reinforced through completed
- * actions.
- */
-export function calculateTopicsReinforced(
-  plan: FeedTrainingPlan,
-  completed: Record<string, boolean>
-): TopicReinforcement[] {
-  const map: Record<string, { displayName: string; count: number }> = {};
-  for (const day of plan.days) {
-    for (const action of day.actions) {
-      if (!isActionableTrainingAction(action)) continue;
-      if (!completed[action.id]) continue;
-      const topic = (action as any).topic as string | undefined;
-      const displayName = (action as any).topicName as string | undefined;
-      if (!topic) continue;
-      if (!map[topic]) {
-        map[topic] = { displayName: displayName ?? topic, count: 0 };
-      }
-      map[topic].count++;
-    }
-  }
-  return Object.entries(map).map(([topic, data]) => ({
-    topic,
-    displayName: data.displayName,
-    actionCount: data.count,
-  }));
 }

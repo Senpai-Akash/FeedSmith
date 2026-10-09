@@ -4,24 +4,19 @@
  * Simple placeholder page for the "Long‑Term Signal Evolution & Training Insights" view.
  * It demonstrates consumption of the snapshot selector layer and renders basic JSON data.
  */
-import { useEffect, useState } from "react";
-import { createSignalSnapshot, deriveLongTermInsights, compareSnapshots } from "@/lib/feed/snapshot";
+import { useMemo, useState } from "react";
+import { createSignalSnapshot, deriveLongTermInsights } from "@/lib/feed/snapshot";
 import type { SignalSnapshot } from "@/lib/feed/snapshot";
 
 export default function EvolutionPage() {
-  const [snapshots, setSnapshots] = useState<SignalSnapshot[]>([]);
-  const [insights, setInsights] = useState<string[]>([]);
-  const [consistencyMessage, setConsistencyMessage] = useState<string>("");
+  const [snapshots] = useState<SignalSnapshot[]>(() => {
+    if (typeof window === "undefined") return [];
+    return [createSignalSnapshot({})];
+  });
 
-  // On mount, capture the current snapshot and store it in local state.
-  useEffect(() => {
-    const snap = createSignalSnapshot({});
-    setSnapshots(prev => [...prev, snap]);
-    // Derive insights from the accumulated snapshots.
-    const { consistency, insights: newInsights } = deriveLongTermInsights([...snapshots, snap]);
-    setInsights(newInsights);
-    setConsistencyMessage(consistency.message);
-  }, []);
+  const { consistency, insights } = useMemo(() => {
+    return deriveLongTermInsights(snapshots);
+  }, [snapshots]);
 
   // Simple UI rendering.
   return (
@@ -43,7 +38,7 @@ export default function EvolutionPage() {
       </section>
       <section>
         <h2 className="text-xl font-semibold">Training Consistency</h2>
-        <p>{consistencyMessage}</p>
+        <p>{consistency.message}</p>
       </section>
     </main>
   );

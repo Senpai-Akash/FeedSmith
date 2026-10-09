@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert";
 import { createSignalSnapshot, compareSnapshots, deriveLongTermInsights } from "./snapshot";
-import { saveTrainingHistoryMeta } from "./history";
+import { saveTrainingHistoryMeta, type TrainingHistoryMeta } from "./history";
 
 function setMockTrainingMeta(meta: TrainingHistoryMeta) {
   // In the node test environment, the history util will bail out early, but we keep the call for API compatibility.

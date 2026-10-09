@@ -589,23 +589,25 @@ function buildFormatAndSubtopicItems(
   if (contentPreferences.length > 0) {
     const topFormat = contentPreferences[0];
     const formatTitle = `${topFormat.name} Focus for ${topInterest.name}`;
-    const reason = `Recommended because you have a strong preference for ${topFormat.name.toLowerCase()} content (${topFormat.strength}/100). Prioritize this format to establish clearer algorithmic feedback.`;
+    if (!isSuppressed(formatTitle, [topInterest.name, topFormat.name], filters)) {
+      const reason = `Recommended because you have a strong preference for ${topFormat.name.toLowerCase()} content (${topFormat.strength}/100). Prioritize this format to establish clearer algorithmic feedback.`;
 
-    items.push({
-      id: `disc-format-${topInterest.id}-${topFormat.id}-${dayIndex}`,
-      title: formatTitle,
-      topicId: topInterest.id,
-      topicName: topInterest.name,
-      type: "content",
-      stage: stageMeta.stage,
-      difficulty: "foundational",
-      relevance: Math.min(100, Math.round((topInterest.strength + topFormat.strength) / 2)),
-      reason,
-      action: "Watch",
-      actionable: true,
-      contentTypes: [topFormat.id],
-      guidance: generateGuidance("Watch", formatTitle, topInterest.name, platform),
-    });
+      items.push({
+        id: `disc-format-${topInterest.id}-${topFormat.id}-${dayIndex}`,
+        title: formatTitle,
+        topicId: topInterest.id,
+        topicName: topInterest.name,
+        type: "content",
+        stage: stageMeta.stage,
+        difficulty: "foundational",
+        relevance: Math.min(100, Math.round((topInterest.strength + topFormat.strength) / 2)),
+        reason,
+        action: "Watch",
+        actionable: true,
+        contentTypes: [topFormat.id],
+        guidance: generateGuidance("Watch", formatTitle, topInterest.name, platform),
+      });
+    }
   }
 
   return items;
@@ -632,9 +634,16 @@ export function generatePersonalizedDiscovery(
   const safeDayIndex = Math.max(0, Math.min(6, Math.floor(dayIndex)));
   const stageMeta = STAGE_CONFIG[safeDayIndex] ?? STAGE_CONFIG[0];
 
-  const interests = extractInterests(blueprint);
+  const allInterests = extractInterests(blueprint);
   const contentPreferences = extractContentPreferences(blueprint);
   const filters = blueprint.suppressed ?? [];
+  const suppressedFilters = new Set(
+    filters.map(f => f.toLowerCase().trim()).filter(Boolean)
+  );
+  // Exclude suppressed interests from positive discovery recommendations
+  const interests = allInterests.filter(
+    i => !suppressedFilters.has(i.id.toLowerCase()) && !suppressedFilters.has(i.name.toLowerCase())
+  );
 
   const searchPaths = buildSearchPaths(
     interests,
