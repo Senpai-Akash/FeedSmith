@@ -1,5 +1,5 @@
 # FEEDSMITH — RECOMMENDATION QUALITY & VALIDATION LAB REPORT
-Generated: 2026-10-09T16:40:06.486Z
+Generated: 2026-10-11T13:53:41.174Z
 
 ## 1. Executive Summary
 
@@ -26,19 +26,8 @@ Generated: 2026-10-09T16:40:06.486Z
 
 ## 4. Search Query Quality
 
-- **Total Duplicate Search Queries Across Week:** 13
-- **Detected Query Repetitions:**
-  - Software Development: "machine learning tutorials" duplicates earlier query "machine learning tutorials"
-  - Fitness: "Strength training explained" duplicates earlier query "Strength training explained"
-  - Fitness: "Strength training deep dive" duplicates earlier query "Strength training deep dive"
-  - Fitness: "strength training basics" duplicates earlier query "strength training basics"
-  - Gaming: "Gaming hardware explained" duplicates earlier query "Gaming hardware explained"
-  - Gaming: "Gaming hardware deep dive" duplicates earlier query "Gaming hardware deep dive"
-  - Gaming: "game development tutorials" duplicates earlier query "game development tutorials"
-  - Animals and Photography: "Wildlife explained" duplicates earlier query "Wildlife explained"
-  - Animals and Photography: "Wildlife deep dive" duplicates earlier query "Wildlife deep dive"
-  - Animals and Photography: "cat behavior explained" duplicates earlier query "cat behavior explained"
-  - ... and 3 more
+- **Total Duplicate Search Queries Across Week:** 0
+- **Result:** PASS. No duplicate search queries generated across training days.
 
 ## 5. Explanation Validation
 
@@ -47,17 +36,17 @@ Generated: 2026-10-09T16:40:06.486Z
 
 ## 6. Discovery Catalog Audit
 
-- **Total Catalog Topics:** 16
-- **Total Subtopics:** 56
-- **Total Curated Searches:** 140
+- **Total Catalog Topics:** 23
+- **Total Subtopics:** 92
+- **Total Curated Searches:** 233
 - **Total Curated Creators:** 15
 - **Duplicate Topic IDs:** 0
-- **Duplicate Subtopic IDs:** 1
-- **Duplicate Search Queries:** 2
+- **Duplicate Subtopic IDs:** 0
+- **Duplicate Search Queries:** 0
 - **Missing Required Fields:** 0
 - **Invalid Platforms:** 0
 - **Malformed URLs:** 0
-- **Topics Without Creators in Catalog:** science, business, music, photography, movies, travel, space, startups, cybersecurity, technology
+- **Topics Without Creators in Catalog:** science, business, music, photography, movies, travel, space, startups, cybersecurity, technology, linux, strength-training, nutrition, running, gaming-hardware, game-analysis, wildlife
 
 ## 7. Adaptive Feedback Engine Invariants
 
@@ -78,19 +67,7 @@ Generated: 2026-10-09T16:40:06.486Z
 
 ## 9. Catalog Metadata Limitations
 
-- The following limitation(s) were recorded for custom/unindexed topics:
-  - Topic "linux" has no entry in DISCOVERY_TOPICS; classified via name match.
-  - Topic "linux" has no catalog definition in DISCOVERY_TOPICS.
-  - Topic "strength-training" has no entry in DISCOVERY_TOPICS; classified via name match.
-  - Topic "nutrition" has no entry in DISCOVERY_TOPICS; classified via name match.
-  - Topic "strength-training" has no catalog definition in DISCOVERY_TOPICS.
-  - Topic "nutrition" has no catalog definition in DISCOVERY_TOPICS.
-  - Topic "gaming-hardware" has no entry in DISCOVERY_TOPICS; classified via name match.
-  - Topic "game-analysis" has no entry in DISCOVERY_TOPICS; classified via name match.
-  - Topic "gaming-hardware" has no catalog definition in DISCOVERY_TOPICS.
-  - Topic "game-analysis" has no catalog definition in DISCOVERY_TOPICS.
-  - Topic "wildlife" has no entry in DISCOVERY_TOPICS; classified via name match.
-  - Topic "wildlife" has no catalog definition in DISCOVERY_TOPICS.
+- All evaluated topics have complete metadata coverage in DISCOVERY_TOPICS.
 
 ## 10. Per-Persona Breakdown
 
@@ -99,7 +76,7 @@ Generated: 2026-10-09T16:40:06.486Z
 - **Direct Match / Related Items:** 133 / 133
 - **Action Counts by Type:** WATCH: 21, SEARCH: 14, SUBSCRIBE: 12, ENGAGE: 7, AVOID: 9
 - **Topic Distribution in Actions:** ai: 33, programming: 12, linux: 9
-- **Duplicate Queries:** 1
+- **Duplicate Queries:** 0
 - **Suppression Violations:** 0
 
 ### Fitness (persona-b)
@@ -107,7 +84,7 @@ Generated: 2026-10-09T16:40:06.486Z
 - **Direct Match / Related Items:** 121 / 121
 - **Action Counts by Type:** WATCH: 21, SEARCH: 14, SUBSCRIBE: 11, ENGAGE: 7, AVOID: 5
 - **Topic Distribution in Actions:** fitness: 32, strength-training: 12, nutrition: 9
-- **Duplicate Queries:** 3
+- **Duplicate Queries:** 0
 - **Suppression Violations:** 0
 
 ### Gaming (persona-c)
@@ -115,7 +92,7 @@ Generated: 2026-10-09T16:40:06.486Z
 - **Direct Match / Related Items:** 121 / 121
 - **Action Counts by Type:** WATCH: 21, SEARCH: 14, SUBSCRIBE: 11, ENGAGE: 7, AVOID: 5
 - **Topic Distribution in Actions:** gaming: 32, gaming-hardware: 12, game-analysis: 9
-- **Duplicate Queries:** 3
+- **Duplicate Queries:** 0
 - **Suppression Violations:** 0
 
 ### Animals and Photography (persona-d)
@@ -123,7 +100,7 @@ Generated: 2026-10-09T16:40:06.486Z
 - **Direct Match / Related Items:** 129 / 129
 - **Action Counts by Type:** WATCH: 21, SEARCH: 14, SUBSCRIBE: 12, ENGAGE: 7, AVOID: 5
 - **Topic Distribution in Actions:** cats: 33, wildlife: 12, photography: 9
-- **Duplicate Queries:** 3
+- **Duplicate Queries:** 0
 - **Suppression Violations:** 0
 
 ### Single Interest (persona-e)
@@ -131,7 +108,7 @@ Generated: 2026-10-09T16:40:06.486Z
 - **Direct Match / Related Items:** 94 / 94
 - **Action Counts by Type:** WATCH: 7, SEARCH: 7, SUBSCRIBE: 12, ENGAGE: 7, AVOID: 5
 - **Topic Distribution in Actions:** ai: 33
-- **Duplicate Queries:** 1
+- **Duplicate Queries:** 0
 - **Suppression Violations:** 0
 
 ### Many Interests (persona-f)
@@ -139,7 +116,7 @@ Generated: 2026-10-09T16:40:06.486Z
 - **Direct Match / Related Items:** 150 / 150
 - **Action Counts by Type:** WATCH: 42, SEARCH: 14, SUBSCRIBE: 12, ENGAGE: 7, AVOID: 5
 - **Topic Distribution in Actions:** ai: 33, programming: 12, gaming: 9, fitness: 7, music: 7, photography: 7
-- **Duplicate Queries:** 1
+- **Duplicate Queries:** 0
 - **Suppression Violations:** 0
 
 ### Conflicting Preferences (persona-g)
@@ -147,7 +124,7 @@ Generated: 2026-10-09T16:40:06.486Z
 - **Direct Match / Related Items:** 42 / 42
 - **Action Counts by Type:** WATCH: 7, SEARCH: 7, SUBSCRIBE: 11, ENGAGE: 7, AVOID: 10
 - **Topic Distribution in Actions:** gaming: 32
-- **Duplicate Queries:** 1
+- **Duplicate Queries:** 0
 - **Suppression Violations:** 0
 
 ### Empty or Partial Profile (persona-h)

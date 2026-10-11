@@ -544,14 +544,36 @@ export default function ProfilePage() {
               className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-xl border border-white/15 bg-[#121217] p-6 shadow-2xl"
               onClick={e => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between border-b border-white/10 pb-4">
-                <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-4">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="rounded-full bg-violet-500/20 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-violet-300">
                     {selectedDiscoveryItem.type}
                   </span>
                   <span className="rounded-full bg-white/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white/60">
                     {selectedDiscoveryItem.difficulty}
                   </span>
+                  {selectedDiscoveryItem.provenance && (
+                    <span
+                      className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider border ${
+                        selectedDiscoveryItem.provenance === "curated"
+                          ? "border-emerald-500/30 bg-emerald-500/15 text-emerald-300"
+                          : selectedDiscoveryItem.provenance === "creator_guidance"
+                          ? "border-amber-500/30 bg-amber-500/15 text-amber-300"
+                          : "border-cyan-500/30 bg-cyan-500/15 text-cyan-300"
+                      }`}
+                    >
+                      {selectedDiscoveryItem.provenance === "curated"
+                        ? "Curated Discovery"
+                        : selectedDiscoveryItem.provenance === "creator_guidance"
+                        ? "Creator Search Guidance"
+                        : "Generated Guidance"}
+                    </span>
+                  )}
+                  {selectedDiscoveryItem.creator?.verificationStatus && (
+                    <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[9px] font-mono text-white/60">
+                      {selectedDiscoveryItem.creator.verificationStatus}
+                    </span>
+                  )}
                 </div>
                 <button
                   type="button"
@@ -569,14 +591,84 @@ export default function ProfilePage() {
                 {selectedDiscoveryItem.topicName} {selectedDiscoveryItem.subtopicName ? `· ${selectedDiscoveryItem.subtopicName}` : ""}
               </p>
 
-              {/* Why This Explanation */}
-              <div className="mt-4 rounded-lg border border-violet-500/20 bg-violet-500/5 p-3.5">
-                <h4 className="text-[11px] font-semibold uppercase tracking-wider text-violet-400">
-                  Why This Recommendation?
-                </h4>
-                <p className="mt-1.5 text-xs leading-relaxed text-white/80">
-                  {selectedDiscoveryItem.reason}
-                </p>
+              {/* 5 Structured Intelligence Sections */}
+              <div className="mt-5 space-y-3.5">
+                {/* 1. WHAT TO EXPLORE */}
+                <div className="rounded-lg border border-white/10 bg-white/[0.02] p-3.5">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-violet-400">
+                    1. What to Explore
+                  </div>
+                  <p className="mt-1 text-xs text-white/90">
+                    {selectedDiscoveryItem.whatToExplore ||
+                      (selectedDiscoveryItem.subtopicName
+                        ? `${selectedDiscoveryItem.topicName} — ${selectedDiscoveryItem.subtopicName}`
+                        : selectedDiscoveryItem.topicName)}
+                  </p>
+                </div>
+
+                {/* 2. WHAT TO SEARCH */}
+                <div className="rounded-lg border border-white/10 bg-white/[0.02] p-3.5">
+                  <div className="flex items-center justify-between">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-cyan-400">
+                      2. What to Search
+                    </div>
+                    {(selectedDiscoveryItem.whatToSearch || selectedDiscoveryItem.searchQuery || selectedDiscoveryItem.title) && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleCopy(
+                            selectedDiscoveryItem.whatToSearch ||
+                              selectedDiscoveryItem.searchQuery ||
+                              selectedDiscoveryItem.title
+                          )
+                        }
+                        className="text-[10px] font-medium text-cyan-300 hover:text-white"
+                      >
+                        {copiedQuery ===
+                        (selectedDiscoveryItem.whatToSearch ||
+                          selectedDiscoveryItem.searchQuery ||
+                          selectedDiscoveryItem.title)
+                          ? "✓ Copied"
+                          : "📋 Copy Query"}
+                      </button>
+                    )}
+                  </div>
+                  <div className="mt-1 font-mono text-xs text-white/90 bg-black/40 px-2.5 py-1.5 rounded border border-white/5">
+                    &ldquo;{selectedDiscoveryItem.whatToSearch || selectedDiscoveryItem.searchQuery || selectedDiscoveryItem.title}&rdquo;
+                  </div>
+                </div>
+
+                {/* 3. WHAT TO LOOK FOR */}
+                <div className="rounded-lg border border-white/10 bg-white/[0.02] p-3.5">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-amber-400">
+                    3. What to Look For
+                  </div>
+                  <p className="mt-1 text-xs leading-relaxed text-white/80">
+                    {selectedDiscoveryItem.whatToLookFor ||
+                      "Seek out comprehensive, high-signal content with practical breakdowns, clean explanations, and verifiable insights."}
+                  </p>
+                </div>
+
+                {/* 4. WHY IT WAS SUGGESTED */}
+                <div className="rounded-lg border border-violet-500/20 bg-violet-500/5 p-3.5">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-violet-400">
+                    4. Why It Was Suggested
+                  </div>
+                  <p className="mt-1 text-xs leading-relaxed text-white/80">
+                    {selectedDiscoveryItem.whySuggested || selectedDiscoveryItem.reason}
+                  </p>
+                </div>
+
+                {/* 5. WHAT TO DO NEXT */}
+                <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3.5">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">
+                    5. What to Do Next
+                  </div>
+                  <p className="mt-1 text-xs leading-relaxed text-white/80">
+                    {selectedDiscoveryItem.whatToDoNext ||
+                      "Search on your active platform, review top results, and engage intentionally with high-quality content."}
+                  </p>
+                </div>
               </div>
 
               {/* Playbook Guidance if present */}
@@ -584,7 +676,7 @@ export default function ProfilePage() {
                 <div className="mt-4 space-y-3">
                   <div className="rounded-lg border border-white/10 bg-white/[0.02] p-3.5">
                     <h4 className="text-[11px] font-semibold uppercase tracking-wider text-white/40">
-                      What to Do
+                      Platform Playbook: How to Execute
                     </h4>
                     <p className="mt-1 text-xs text-white/80">
                       {selectedDiscoveryItem.guidance.how}
@@ -1043,10 +1135,15 @@ export default function ProfilePage() {
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div>
-                          <span className="text-[10px] font-semibold uppercase tracking-wider text-violet-400">
-                            {item.difficulty} · {item.topicName}
-                          </span>
-                          <div className="mt-0.5 text-xs font-medium text-white">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-[10px] font-semibold uppercase tracking-wider text-violet-400">
+                              {item.difficulty} · {item.topicName}
+                            </span>
+                            <span className="rounded border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.2 text-[9px] font-medium text-emerald-300">
+                              Curated Discovery
+                            </span>
+                          </div>
+                          <div className="mt-1 text-xs font-medium text-white">
                             &ldquo;{item.title}&rdquo;
                           </div>
                         </div>
@@ -1059,16 +1156,22 @@ export default function ProfilePage() {
                         </button>
                       </div>
 
-                      <p className="mt-2 text-[11px] leading-relaxed text-white/60">
-                        {item.reason}
-                      </p>
+                      {item.whatToLookFor ? (
+                        <p className="mt-2 text-[11px] leading-relaxed text-amber-200/80 line-clamp-2">
+                          <span className="font-semibold text-amber-400">Look for:</span> {item.whatToLookFor}
+                        </p>
+                      ) : (
+                        <p className="mt-2 text-[11px] leading-relaxed text-white/60">
+                          {item.reason}
+                        </p>
+                      )}
 
                       <div className="mt-3 flex items-center justify-between border-t border-white/5 pt-2">
                         <div className="flex items-center gap-2">
                           <button
                             type="button"
                             onClick={() => handleCopy(item.searchQuery || item.title)}
-                            className="text-[10px] text-white/40 hover:text-white"
+                            className="text-[10px] text-cyan-300/80 hover:text-cyan-200"
                           >
                             {copiedQuery === (item.searchQuery || item.title) ? "✓ Copied" : "📋 Copy Search"}
                           </button>
@@ -1132,7 +1235,7 @@ export default function ProfilePage() {
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-white/50">
                   Who to Follow
                 </h3>
-                <span className="text-[10px] text-white/40">Reinforces Target Topics</span>
+                <span className="text-[10px] text-white/40">Curated & Creator Guidance</span>
               </div>
 
               <div className="space-y-2.5">
@@ -1148,8 +1251,19 @@ export default function ProfilePage() {
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div>
-                          <div className="text-xs font-semibold text-white">
-                            {item.title}
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-xs font-semibold text-white">
+                              {item.title}
+                            </span>
+                            {item.provenance === "creator_guidance" ? (
+                              <span className="rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.2 text-[9px] font-medium text-amber-300">
+                                Creator Guidance
+                              </span>
+                            ) : (
+                              <span className="rounded border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.2 text-[9px] font-medium text-emerald-300">
+                                Curated Creator
+                              </span>
+                            )}
                           </div>
                           <span className="text-[10px] text-white/40">
                             {item.creator?.platform ?? "Platform"} · {item.creator?.topics.join(", ")}
@@ -1164,9 +1278,15 @@ export default function ProfilePage() {
                         </button>
                       </div>
 
-                      <p className="mt-2 text-[11px] leading-relaxed text-white/60">
-                        {item.reason}
-                      </p>
+                      {item.whatToLookFor ? (
+                        <p className="mt-2 text-[11px] leading-relaxed text-amber-200/80 line-clamp-2">
+                          <span className="font-semibold text-amber-400">Criteria:</span> {item.whatToLookFor}
+                        </p>
+                      ) : (
+                        <p className="mt-2 text-[11px] leading-relaxed text-white/60">
+                          {item.reason}
+                        </p>
+                      )}
 
                       <div className="mt-3 flex items-center justify-between border-t border-white/5 pt-2">
                         <div className="flex items-center gap-1">
@@ -1237,9 +1357,14 @@ export default function ProfilePage() {
                     className="rounded-lg border border-violet-500/30 bg-violet-500/10 p-3.5"
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-violet-300">
-                        Signal Crossover
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-violet-300">
+                          Signal Crossover
+                        </span>
+                        <span className="rounded border border-cyan-500/30 bg-cyan-500/10 px-1 py-0.2 text-[9px] font-medium text-cyan-300">
+                          Generated
+                        </span>
+                      </div>
                       <button
                         type="button"
                         onClick={() => setSelectedDiscoveryItem(item)}
@@ -1300,9 +1425,14 @@ export default function ProfilePage() {
                     className="rounded-lg border border-white/10 bg-black/25 p-3.5"
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-white/40">
-                        Format Bias
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-white/40">
+                          Format Bias
+                        </span>
+                        <span className="rounded border border-violet-500/30 bg-violet-500/10 px-1 py-0.2 text-[9px] font-medium text-violet-300">
+                          Format Intelligence
+                        </span>
+                      </div>
                       <button
                         type="button"
                         onClick={() => setSelectedDiscoveryItem(item)}

@@ -325,6 +325,12 @@ function buildSearchPaths(
         completed: isCompleted,
         searchQuery: picked.query,
         contentTypes: contentPreferences.map(c => c.name.toLowerCase()),
+        provenance: "curated",
+        whatToExplore: subtopicName ?? interest.name,
+        whatToSearch: picked.query,
+        whatToLookFor: subtopicObj?.whatToLookFor ?? `Look for ${topContent} explaining ${subtopicName ?? interest.name} clearly.`,
+        whySuggested: reason,
+        whatToDoNext: `Search "${picked.query}" on ${platform} and watch the top high-signal result to completion.`,
         guidance: generateGuidance("Search", picked.query, interest.name, platform),
       });
     }
@@ -363,6 +369,8 @@ function buildCreatorRecommendations(
           topics: c.topics,
           description: c.description,
           url: c.url,
+          provenance: c.provenance ?? "curated",
+          verificationStatus: c.verificationStatus ?? "curated",
         });
       });
     }
@@ -376,6 +384,8 @@ function buildCreatorRecommendations(
       topics: [...c.topics],
       description: c.description,
       url: c.url,
+      provenance: c.provenance ?? "curated",
+      verificationStatus: c.verificationStatus ?? "curated",
     });
   });
 
@@ -458,9 +468,58 @@ function buildCreatorRecommendations(
       actionId,
       completed: isCompleted,
       creator: item.creator,
+      provenance: "curated",
+      whatToExplore: item.creator.name,
+      whatToSearch: `Explore ${item.creator.name}'s profile on ${item.creator.platform}`,
+      whatToLookFor: item.creator.description,
+      whySuggested: reason,
+      whatToDoNext: `Inspect recent uploads from ${item.creator.name} and follow if aligned with your ${primaryMatch.name} goals.`,
       guidance: generateGuidance("Follow", item.creator.name, primaryMatch.name, item.creator.platform),
     });
   });
+
+  // If no curated creators exist for user's interests, generate creator search guidance
+  if (items.length === 0) {
+    interests.slice(0, 2).forEach((interest, intIdx) => {
+      const topic = getDiscoveryTopic(interest.id);
+      const guidanceList = topic?.creatorGuidance ?? [];
+      const validGuidance = guidanceList.filter(
+        g => !isSuppressed(g.instruction + " " + g.searchQuery, [interest.name], filters)
+      );
+
+      if (validGuidance.length > 0) {
+        const guidance = validGuidance[(dayIndex + intIdx) % validGuidance.length];
+        const actionId = `day-${dayIndex + 1}-creator-guidance-${interest.id}`;
+        const isCompleted = Boolean(completedActions[actionId]);
+
+        items.push({
+          id: `disc-creator-guidance-${interest.id}-${dayIndex}`,
+          title: guidance.instruction,
+          topicId: interest.id,
+          topicName: interest.name,
+          subtopicId: guidance.subtopicId,
+          category: interest.name,
+          type: "creator",
+          stage: stageMeta.stage,
+          difficulty: "intermediate",
+          relevance: interest.strength,
+          reason: `Recommended because ${interest.name} is one of your selected interests (${interest.strength}/100). Rather than recommending unverified accounts, FeedSmith provides structured creator search criteria.`,
+          action: "Search",
+          actionable: true,
+          actionId,
+          completed: isCompleted,
+          searchQuery: guidance.searchQuery,
+          provenance: "creator_guidance",
+          whatToExplore: interest.name,
+          whatToSearch: guidance.searchQuery,
+          whatToLookFor: guidance.whatToLookFor.join("; "),
+          whySuggested: `Suggested to discover independent creators in ${interest.name} with objective quality criteria.`,
+          whatToDoNext: `Search for this profile pattern on ${platform} and verify recent uploads against the quality criteria.`,
+          guidance: generateGuidance("Search", guidance.searchQuery, interest.name, platform),
+        });
+      }
+    });
+  }
 
   return items;
 }
@@ -505,6 +564,12 @@ function buildCrossoverSuggestions(
         actionable: true,
         searchQuery: query,
         relatedInterests: [primary.name, secondary.name],
+        provenance: "generated_query",
+        whatToExplore: `${primary.name} + ${secondary.name} Integration`,
+        whatToSearch: query,
+        whatToLookFor: "Real-world projects, toolchains, or workflows that synthesize both domains without superficial hype.",
+        whySuggested: reason,
+        whatToDoNext: `Search "${query}" on ${platform} and bookmark high-density crossover content.`,
         guidance: generateGuidance("Search", query, `${primary.name} & ${secondary.name}`, platform),
       });
     }
@@ -535,6 +600,12 @@ function buildCrossoverSuggestions(
           actionable: true,
           searchQuery: query,
           relatedInterests: [subA.name, subB.name],
+          provenance: "generated_query",
+          whatToExplore: `${subA.name} & ${subB.name}`,
+          whatToSearch: query,
+          whatToLookFor: `Demonstrations showing how ${subA.name} and ${subB.name} interact in practice.`,
+          whySuggested: `Synthesizes multiple sub-facets of ${primary.name} to avoid narrow over-specialization.`,
+          whatToDoNext: `Search "${query}" on ${platform} and study practical demonstrations.`,
           guidance: generateGuidance("Search", query, primary.name, platform),
         });
       }
@@ -542,6 +613,61 @@ function buildCrossoverSuggestions(
   }
 
   return items;
+}
+
+/**
+ * Format mapping helper aligning user content preferences with actionable discovery guidance.
+ */
+function getFormatMapping(formatId: string): {
+  titleSuffix: string;
+  whatToLookFor: string;
+  reasonPhrase: string;
+  actionGuidance: string;
+} {
+  switch (formatId.toLowerCase()) {
+    case "tutorials":
+      return {
+        titleSuffix: "Step-by-Step Demonstrations",
+        whatToLookFor: "Clear, sequential demonstrations showing execution from start to finish without skipping steps.",
+        reasonPhrase: "you prefer hands-on tutorials, so step-by-step demonstrations reinforce actionable skills.",
+        actionGuidance: "Prioritize full demonstration walkthroughs and project builds.",
+      };
+    case "educational":
+      return {
+        titleSuffix: "Conceptual Explanations & Breakdowns",
+        whatToLookFor: "First-principles explanations, visual diagrams, and thorough conceptual breakdowns.",
+        reasonPhrase: "you prefer educational content, prioritizing conceptual clarity and deep understanding.",
+        actionGuidance: "Focus on in-depth explainers and theory breakdowns.",
+      };
+    case "entertainment":
+      return {
+        titleSuffix: "Engaging & Creative Content",
+        whatToLookFor: "Entertaining presentations, creative experiments, and engaging perspectives on target topics.",
+        reasonPhrase: "you enjoy entertaining content while maintaining topic relevance.",
+        actionGuidance: "Select entertaining videos that still reinforce your target subject.",
+      };
+    case "reviews":
+      return {
+        titleSuffix: "Comparisons & Practical Evaluations",
+        whatToLookFor: "Objective side-by-side comparisons, benchmark data, and practical evaluations.",
+        reasonPhrase: "you value evaluations and comparisons to make informed decisions.",
+        actionGuidance: "Seek out comparative reviews and benchmark analyses.",
+      };
+    case "discussions":
+      return {
+        titleSuffix: "In-Depth Discussions & Case Studies",
+        whatToLookFor: "Nuanced roundtables, postmortem case studies, and engineering trade-off debates.",
+        reasonPhrase: "you value technical discussions and real-world case studies.",
+        actionGuidance: "Engage with retrospective interviews and expert discussions.",
+      };
+    default:
+      return {
+        titleSuffix: "Focused Exploration",
+        whatToLookFor: "High-signal content tailored to your target topics.",
+        reasonPhrase: "it matches your selected content preferences.",
+        actionGuidance: "Consume content that directly reinforces your objectives.",
+      };
+  }
 }
 
 /**
@@ -580,6 +706,12 @@ function buildFormatAndSubtopicItems(
         reason: `Recommended because exploring ${subtopic.name} builds topic depth in ${topInterest.name} (${topInterest.strength}/100).`,
         action: "Explore",
         actionable: true,
+        provenance: "curated",
+        whatToExplore: `${topInterest.name} · ${subtopic.name}`,
+        whatToSearch: `${topInterest.name} ${subtopic.name} explained`,
+        whatToLookFor: subtopic.whatToLookFor ?? `Foundational and intermediate coverage of ${subtopic.name}.`,
+        whySuggested: `Exploring ${subtopic.name} expands your signal around ${topInterest.name}.`,
+        whatToDoNext: `Browse playlists and community posts around ${subtopic.name} on ${platform}.`,
         guidance: generateGuidance("Explore", subtopic.name, topInterest.name, platform),
       });
     }
@@ -588,6 +720,7 @@ function buildFormatAndSubtopicItems(
   // Format recommendation based on content preference
   if (contentPreferences.length > 0) {
     const topFormat = contentPreferences[0];
+    const mapping = getFormatMapping(topFormat.id);
     const formatTitle = `${topFormat.name} Focus for ${topInterest.name}`;
     if (!isSuppressed(formatTitle, [topInterest.name, topFormat.name], filters)) {
       const reason = `Recommended because you have a strong preference for ${topFormat.name.toLowerCase()} content (${topFormat.strength}/100). Prioritize this format to establish clearer algorithmic feedback.`;
@@ -605,6 +738,12 @@ function buildFormatAndSubtopicItems(
         action: "Watch",
         actionable: true,
         contentTypes: [topFormat.id],
+        provenance: "generated_query",
+        whatToExplore: `${topInterest.name} (${topFormat.name})`,
+        whatToSearch: `${topInterest.name} ${topFormat.name.toLowerCase()} tutorials`,
+        whatToLookFor: mapping.whatToLookFor,
+        whySuggested: `Suggested because ${mapping.reasonPhrase}`,
+        whatToDoNext: `${mapping.actionGuidance} Open ${platform} and engage thoughtfully.`,
         guidance: generateGuidance("Watch", formatTitle, topInterest.name, platform),
       });
     }

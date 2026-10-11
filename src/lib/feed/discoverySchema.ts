@@ -20,7 +20,12 @@ export const DiscoverySubtopicSchema = z.object({
   id: z.string(),
   name: z.string(),
   description: z.string().optional(),
+  parentInterest: z.string().optional(),
   related: z.array(z.string()).optional(),
+  tags: z.array(z.string()).optional(),
+  keywords: z.array(z.string()).optional(),
+  recommendedFormats: z.array(z.string()).optional(),
+  whatToLookFor: z.string().optional(),
 });
 
 /** Creator entry that can be recommended for a topic */
@@ -29,8 +34,25 @@ export const DiscoveryCreatorSchema = z.object({
   name: z.string(),
   platform: z.enum(["instagram", "youtube", "tiktok"]),
   topics: z.array(z.string()),
+  subtopics: z.array(z.string()).optional(),
+  contentTypes: z.array(z.string()).optional(),
+  tags: z.array(z.string()).optional(),
   url: z.string().url().optional(),
   description: z.string(),
+  type: z.string().optional(),
+  provenance: z.enum(["curated", "creator_guidance"]).optional(),
+  verificationStatus: z.enum(["verified", "curated", "unverified"]).optional(),
+});
+
+/** Structured instructions for discovering creators when curated profiles are unavailable */
+export const CreatorSearchGuidanceSchema = z.object({
+  id: z.string(),
+  topicId: z.string(),
+  subtopicId: z.string().optional(),
+  instruction: z.string(),
+  whatToLookFor: z.array(z.string()),
+  searchQuery: z.string(),
+  targetPlatform: z.enum(["instagram", "youtube", "tiktok"]).optional(),
 });
 
 /** Individual search query used by the discovery engine */
@@ -39,6 +61,11 @@ export const DiscoverySearchQuerySchema = z.object({
   specificity: z.enum(["broad", "specific", "discovery"]),
   contentTypes: z.array(z.string()).optional(),
   subtopic: z.string().optional(),
+  difficulty: z.enum(["foundational", "intermediate", "advanced", "specialized"]).optional(),
+  tags: z.array(z.string()).optional(),
+  secondaryTopic: z.string().optional(),
+  provenance: z.enum(["curated", "generated"]).optional(),
+  template: z.string().optional(),
 });
 
 /** Top‑level discovery topic definition */
@@ -49,6 +76,7 @@ export const DiscoveryTopicSchema = z.object({
   description: z.string().optional(),
   relatedTopics: z.array(z.string()).optional(),
   creators: z.array(DiscoveryCreatorSchema).optional(),
+  creatorGuidance: z.array(CreatorSearchGuidanceSchema).optional(),
   subtopics: z.array(DiscoverySubtopicSchema).optional(),
   searches: z.array(DiscoverySearchQuerySchema),
   contentTypes: z.array(z.string()).optional(),
@@ -62,6 +90,7 @@ export const DiscoveryLibrarySchema = z.record(z.string(),DiscoveryTopicSchema);
 // similarly‑named interfaces defined in `types.ts`.
 export type DiscoverySubtopicSchema = z.infer<typeof DiscoverySubtopicSchema>;
 export type DiscoveryCreatorSchema = z.infer<typeof DiscoveryCreatorSchema>;
+export type CreatorSearchGuidanceSchema = z.infer<typeof CreatorSearchGuidanceSchema>;
 export type DiscoverySearchQuerySchema = z.infer<typeof DiscoverySearchQuerySchema>;
 export type DiscoveryTopicSchema = z.infer<typeof DiscoveryTopicSchema>;
 export type DiscoveryLibrarySchema = z.infer<typeof DiscoveryLibrarySchema>;

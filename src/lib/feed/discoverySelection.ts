@@ -109,7 +109,7 @@ export function selectSearchQuery(
     if (dayIndex < 2) return suggestions[0] ?? `${interest.name} content`;
     if (dayIndex < 4) return suggestions[Math.min(1, suggestions.length - 1)] ?? suggestions[0];
     if (dayIndex < 6) return suggestions[Math.min(2, suggestions.length - 1)] ?? suggestions[0];
-    return suggestions[0] ?? `${interest.name} content`;
+    return suggestions[Math.min(3, suggestions.length - 1)] ?? suggestions[0];
   }
 
   const preferredSpecificity: DiscoverySearchQuery["specificity"] =
@@ -126,13 +126,16 @@ export function selectSearchQuery(
     }))
     .sort((a, b) => b.score - a.score || a.index - b.index);
 
-  // Rotate between top candidates across consecutive days of the same stage
-  // Day 1 (index 0) gets top candidate (0); Day 2 (index 1) gets second candidate if available
-  // Day 3 (index 2) gets top candidate (0); Day 4 (index 3) gets second candidate if available
-  // Day 5 (index 4) gets top candidate (0); Day 6 (index 5) gets second candidate if available
-  // Day 7 (index 6) gets top candidate (0) for maintenance
-  const isSecondDayOfStage = dayIndex % 2 === 1;
-  const pickIndex = isSecondDayOfStage && orderedCandidates.length > 1 ? 1 : 0;
+  // Rotate between candidates across days to avoid unnecessary duplication:
+  // Days 0, 2, 4 get the top candidate (0);
+  // Days 1, 3, 5 get the second candidate (1) if available;
+  // Day 6 (Day 7 maintenance) gets the third candidate (2) or second if available.
+  let pickIndex = 0;
+  if (dayIndex === 6) {
+    pickIndex = orderedCandidates.length > 2 ? 2 : orderedCandidates.length > 1 ? 1 : 0;
+  } else if (dayIndex % 2 === 1 && orderedCandidates.length > 1) {
+    pickIndex = 1;
+  }
 
   return orderedCandidates[pickIndex].query.query;
 }

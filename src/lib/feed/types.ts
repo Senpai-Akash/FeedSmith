@@ -72,10 +72,13 @@ export type TrainingActionType =
 export interface CreatorRecommendation {
   id: string;
   name: string;
+  handle?: string;
   platform: TrainingPlatform;
   topics: string[];
   url?: string;
   description: string;
+  provenance?: "curated" | "creator_guidance";
+  verificationStatus?: "verified" | "curated" | "unverified";
 }
 
 export interface TrainingActionBase {
@@ -212,6 +215,12 @@ export interface DiscoveryItem {
   contentTypes?: string[];
   relatedInterests?: string[];
   guidance?: DiscoveryPlaybookGuidance;
+  provenance?: "curated" | "generated_query" | "creator_guidance";
+  whatToExplore?: string;
+  whatToSearch?: string;
+  whatToLookFor?: string;
+  whySuggested?: string;
+  whatToDoNext?: string;
 }
 
 export interface DiscoveryFeed {
@@ -243,6 +252,10 @@ export interface DiscoverySearchQuery {
   tags?: string[];
   /** For crossover queries */
   secondaryTopic?: string;
+  /** Provenance of search query */
+  provenance?: "curated" | "generated";
+  /** Query template or intent tag */
+  template?: string;
 }
 
 export interface DiscoveryCreator {
@@ -256,6 +269,22 @@ export interface DiscoveryCreator {
   description: string;
   url?: string;
   type?: string;
+  provenance?: "curated" | "creator_guidance";
+  verificationStatus?: "verified" | "curated" | "unverified";
+}
+
+/**
+ * Structured instructions for discovering relevant creators when
+ * no curated creator profiles are available for a given topic/subtopic.
+ */
+export interface CreatorSearchGuidance {
+  id: string;
+  topicId: string;
+  subtopicId?: string;
+  instruction: string;
+  whatToLookFor: string[];
+  searchQuery: string;
+  targetPlatform?: TrainingPlatform | "instagram" | "youtube" | "tiktok";
 }
 
 /**
@@ -266,10 +295,17 @@ export interface DiscoverySubtopic {
   id: string;
   name: string;
   description?: string;
+  parentInterest?: string;
   /** Related topic IDs */
   related?: string[];
   /** Suppression/category tags */
   tags?: string[];
+  /** Keywords for indexing and search generation */
+  keywords?: string[];
+  /** Recommended content formats */
+  recommendedFormats?: string[];
+  /** Concrete guidance on what to look for */
+  whatToLookFor?: string;
 }
 
 /**
@@ -289,6 +325,8 @@ export interface DiscoveryTopic {
   contentTypes: string[];
   /** Curated creators associated with this topic */
   creators?: DiscoveryCreator[];
+  /** Creator search guidance for discovering new voices without hardcoding real names */
+  creatorGuidance?: CreatorSearchGuidance[];
   /** Related topic IDs to broaden the topic map */
   relatedTopics?: string[];
 }

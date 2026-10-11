@@ -20,6 +20,10 @@ export const INTERESTS = [
   { id: "travel", name: "Travel", category: "lifestyle" },
   { id: "space", name: "Space", category: "science" },
   { id: "startups", name: "Startups", category: "business" },
+  { id: "linux", name: "Linux", category: "technology" },
+  { id: "running", name: "Running", category: "lifestyle" },
+  { id: "nutrition", name: "Nutrition", category: "lifestyle" },
+  { id: "wildlife", name: "Wildlife", category: "science" },
 ] as const;
 
 export type Interest = typeof INTERESTS[number];
@@ -125,6 +129,55 @@ export const INTEREST_SEARCH_SUGGESTIONS: Record<string, string[]> = {
     "product market fit",
     "SaaS growth strategy",
   ],
+  linux: [
+    "Linux operating system fundamentals",
+    "Linux command line tutorials",
+    "Linux internals memory management explained",
+    "Bash shell scripting automation practical",
+    "Linux system troubleshooting strace journalctl",
+  ],
+  running: [
+    "running fundamentals",
+    "running form analysis cadence footstrike breakdown",
+    "half marathon training plan",
+    "zone 2 heart rate training endurance running",
+    "marathon pacing strategy nutrition hydration",
+  ],
+  nutrition: [
+    "nutrition science fundamentals",
+    "healthy meal prep basics",
+    "protein intake timing muscle protein synthesis",
+    "high protein meal prep practical batch cooking",
+    "micronutrient density and energy balance guide",
+  ],
+  wildlife: [
+    "wildlife observation basics",
+    "animal behavior fundamentals",
+    "wildlife tracking field signs animal behavior",
+    "predator prey dynamics habitat ecology study",
+    "ethical wildlife photography distance observation",
+  ],
+  "strength-training": [
+    "strength training fundamentals",
+    "squat and deadlift form breakdown biomechanics",
+    "progressive overload hypertrophy programming",
+    "strength training recovery mobility routine",
+    "barbell mechanics cues",
+  ],
+  "gaming-hardware": [
+    "gaming pc hardware basics",
+    "pc component selection guide",
+    "gpu benchmark framerate 1 percent lows comparison",
+    "custom pc build cable management airflow tutorial",
+    "monitor response time refresh rate input latency",
+  ],
+  "game-analysis": [
+    "game design principles",
+    "game mechanics breakdown",
+    "level design pacing environmental storytelling case study",
+    "gameplay loop risk reward mechanics breakdown",
+    "interactive narrative world building techniques",
+  ],
 };
 
 export const INTEREST_CREATOR_CATALOG = [
@@ -135,6 +188,8 @@ export const INTEREST_CREATOR_CATALOG = [
     topics: ["programming", "ai", "technology"],
     url: "https://www.youtube.com/@freecodecamp",
     description: "Long-form programming courses and practical developer tutorials.",
+    provenance: "curated",
+    verificationStatus: "curated",
   },
   {
     id: "traversy-media",
@@ -143,6 +198,8 @@ export const INTEREST_CREATOR_CATALOG = [
     topics: ["programming", "technology"],
     url: "https://www.youtube.com/@TraversyMedia",
     description: "Web development tutorials, project builds, and developer guidance.",
+    provenance: "curated",
+    verificationStatus: "curated",
   },
   {
     id: "fireship",
@@ -151,6 +208,8 @@ export const INTEREST_CREATOR_CATALOG = [
     topics: ["programming", "ai", "technology"],
     url: "https://www.youtube.com/@Fireship",
     description: "Concise programming explainers and modern tech breakdowns.",
+    provenance: "curated",
+    verificationStatus: "curated",
   },
   {
     id: "the-net-ninja",
@@ -159,6 +218,8 @@ export const INTEREST_CREATOR_CATALOG = [
     topics: ["programming"],
     url: "https://www.youtube.com/@NetNinja",
     description: "Structured web development lessons and coding series.",
+    provenance: "curated",
+    verificationStatus: "curated",
   },
   {
     id: "jackson-galaxy",
@@ -167,6 +228,8 @@ export const INTEREST_CREATOR_CATALOG = [
     topics: ["cats"],
     url: "https://www.youtube.com/@JacksonGalaxy",
     description: "Cat behavior education and practical cat-care advice.",
+    provenance: "curated",
+    verificationStatus: "curated",
   },
   {
     id: "kitten-lady",
@@ -175,6 +238,8 @@ export const INTEREST_CREATOR_CATALOG = [
     topics: ["cats"],
     url: "https://www.youtube.com/@KittenLady",
     description: "Kitten rescue, cat welfare, and care education.",
+    provenance: "curated",
+    verificationStatus: "curated",
   },
   {
     id: "cole-and-marmalade",
@@ -183,6 +248,8 @@ export const INTEREST_CREATOR_CATALOG = [
     topics: ["cats"],
     url: "https://www.youtube.com/@ColeAndMarmalade",
     description: "Cat-centered videos with education, rescue, and light entertainment.",
+    provenance: "curated",
+    verificationStatus: "curated",
   },
   {
     id: "kurzgesagt",
@@ -191,6 +258,8 @@ export const INTEREST_CREATOR_CATALOG = [
     topics: ["science", "space", "technology"],
     url: "https://www.youtube.com/@kurzgesagt",
     description: "Animated science explainers and big-picture technology topics.",
+    provenance: "curated",
+    verificationStatus: "curated",
   },
   {
     id: "ali-abdaal",
@@ -199,5 +268,7 @@ export const INTEREST_CREATOR_CATALOG = [
     topics: ["business", "startups"],
     url: "https://www.youtube.com/@aliabdaal",
     description: "Creator business, productivity, and thoughtful work systems.",
+    provenance: "curated",
+    verificationStatus: "curated",
   },
 ] as const;
