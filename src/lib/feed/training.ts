@@ -269,7 +269,8 @@ function creatorActionType(platform: TrainingPlatform): "FOLLOW" | "SUBSCRIBE" {
 function buildWatchActions(
   interests: FeedPreference[],
   contentPreferences: ContentPreference[],
-  dayIndex: number
+  dayIndex: number,
+  platform: TrainingPlatform = DEFAULT_PLATFORM
 ): TrainingAction[] {
   const dailyTargets = calculateDailyWatchTargets(interests.length);
   const counts = allocateCounts(interests, dailyTargets[dayIndex]);
@@ -290,7 +291,7 @@ function buildWatchActions(
       count,
       contentType: contentPreference?.id ?? "relevant",
       contentPreferenceName,
-      platform: DEFAULT_PLATFORM,
+      platform,
       description: `Watch ${count} ${style} ${interest.name.toLowerCase()} ${count === 1 ? "video" : "videos"}.`,
       why: `This reinforces ${interest.name} at ${interest.strength}/100 in a way that matches your ${contentPreferenceName.toLowerCase()} preference without overloading weaker signals.`,
     };
@@ -306,7 +307,8 @@ function buildSearchActions(
   interests: FeedPreference[],
   contentPreferences: ContentPreference[],
   dayIndex: number,
-  subtopicDeltas: Record<string, number> = {}
+  subtopicDeltas: Record<string, number> = {},
+  platform: TrainingPlatform = DEFAULT_PLATFORM
 ): TrainingAction[] {
   // Vary search count by day
   let searchCount: number;
@@ -349,7 +351,7 @@ function buildSearchActions(
       subtopicId: matchedSearch?.subtopic,
       subtopicName,
       query,
-      platform: DEFAULT_PLATFORM,
+      platform,
       description: `Search "${query}" and choose results that genuinely match what you want more of.`,
       why: explanation,
     };
@@ -369,7 +371,8 @@ function buildCreatorActions(
   interests: FeedPreference[],
   contentPreferences: ContentPreference[],
   dayIndex: number,
-  subtopicDeltas: Record<string, number> = {}
+  subtopicDeltas: Record<string, number> = {},
+  platform: TrainingPlatform = DEFAULT_PLATFORM
 ): TrainingAction[] {
   // Skip days where we don't recommend creators
   if (![0, 1, 2, 3, 4, 5].includes(dayIndex)) return [];
@@ -415,7 +418,7 @@ function buildCreatorActions(
 
   // Convert to training actions
   return selectedCreators.map(creator => {
-    const type = creatorActionType(creator.platform);
+    const type = creatorActionType(platform);
     const explanation = generateCreatorExplanation(creator, targetInterests, subtopicDeltas);
 
     return {
@@ -424,7 +427,7 @@ function buildCreatorActions(
       title: `${type === "SUBSCRIBE" ? "Subscribe to" : "Follow"} ${creator.name}`,
       topic: targetInterests[0]?.id,
       topicName: targetInterests[0]?.name,
-      creator,
+      creator: { ...creator, platform },
       description: `${type === "SUBSCRIBE" ? "Subscribe to" : "Follow"} ${creator.name} if you genuinely want more content aligned with your interests.`,
       why: explanation,
     } as TrainingAction;
@@ -590,9 +593,9 @@ export function generateFeedTrainingPlan(
   const days = STAGE_DETAILS.map((stage, dayIndex) => ({
     ...stage,
     actions: [
-      ...buildWatchActions(interests, contentPreferences, dayIndex),
-      ...buildSearchActions(interests, contentPreferences, dayIndex, subtopicDeltas),
-      ...buildCreatorActions(interests, contentPreferences, dayIndex, subtopicDeltas),
+      ...buildWatchActions(interests, contentPreferences, dayIndex, platform),
+      ...buildSearchActions(interests, contentPreferences, dayIndex, subtopicDeltas, platform),
+      ...buildCreatorActions(interests, contentPreferences, dayIndex, subtopicDeltas, platform),
       ...buildEngageActions(interests, contentPreferences, dayIndex),
       ...buildAvoidActions(blueprint, dayIndex),
     ],

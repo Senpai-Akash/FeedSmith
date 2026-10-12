@@ -52,8 +52,11 @@ export default function FeedPage() {
             >
               Refresh ↻
             </button>
+            <Link href="/build/profile" className="text-sm underline hover:text-gray-200">
+              ← Daily Mission
+            </Link>
             <Link href="/build" className="text-sm underline hover:text-gray-200">
-              ← Adjust signal
+              Adjust signal
             </Link>
           </div>
         </header>
@@ -92,8 +95,8 @@ export default function FeedPage() {
                       priority={idx === 0}
                     />
                   )}
-                  <div className="flex">
-                    <div className="flex items-center justify-between">
+                  <div className="flex flex-col flex-1 min-w-0 space-y-2">
+                    <div className="flex items-center justify-between gap-4">
                       <h2 className="text-xl font-semibold text-white">
                         {item.content.title}
                       </h2>

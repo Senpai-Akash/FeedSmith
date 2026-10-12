@@ -1,6 +1,6 @@
 export type { Interest, FeedPreference, FeedPreferences } from "./types";
 
-import { FeedPreferences, FeedPreference, ContentPreference, FeedFilter } from "./types";
+import { FeedPreferences, FeedPreference, ContentPreference, FeedFilter, TrainingPlatform } from "./types";
 
 const STORAGE_KEY = "feedPreferences";
 
@@ -71,15 +71,23 @@ export function normalizePreferences(raw: unknown): FeedPreferences {
 
   const filters = normalizeFilters(candidate.filters);
 
+  const platform =
+    candidate.platform === "instagram" ||
+    candidate.platform === "youtube" ||
+    candidate.platform === "tiktok"
+      ? candidate.platform
+      : undefined;
+
   return {
     interests: Array.from(new Map(interests.map(item => [item.id, item])).values()).sort((a, b) => b.strength - a.strength || a.name.localeCompare(b.name)),
     contentPreferences: Array.from(new Map(contentPreferences.map(item => [item.id, item])).values()).sort((a, b) => b.strength - a.strength || a.name.localeCompare(b.name)),
     filters,
+    ...(platform ? { platform } : {}),
   };
 }
 
 export function loadPreferences(): FeedPreferences {
-  if (typeof window === "undefined") {
+  if (typeof localStorage === "undefined") {
     return { interests: [], contentPreferences: [], filters: [] };
   }
 
@@ -94,7 +102,7 @@ export function loadPreferences(): FeedPreferences {
 }
 
 export function savePreferences(prefs: FeedPreferences): void {
-  if (typeof window === "undefined") return;
+  if (typeof localStorage === "undefined") return;
 
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizePreferences(prefs)));

@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import NavBar from "@/components/landing/NavBar";
 import { motion } from "framer-motion";
 import { useRef, useEffect } from "react";
@@ -145,19 +146,19 @@ export default function Home() {
                 }}
                 className="mt-10 flex flex-wrap gap-4"
               >
-                <a
+                <Link
                   href="/build"
                   className="inline-flex items-center rounded-full bg-white px-7 py-3.5 text-sm font-medium text-black transition hover:scale-[1.03]"
                 >
                   Build my feed
                   <span className="ml-2">→</span>
-                </a>
-                <a
-                  href="/feed"
+                </Link>
+                <Link
+                  href="/build/profile"
                   className="inline-flex items-center rounded-full border border-white/20 px-7 py-3.5 text-sm font-medium text-white/70 transition hover:border-white/40 hover:text-white"
                 >
                   Today&apos;s mission
-                </a>
+                </Link>
               </motion.div>
 
               <p className="mt-6 text-xs text-white/40">

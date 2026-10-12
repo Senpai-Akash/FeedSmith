@@ -31,6 +31,8 @@ export type FeedFilter = string;
 
 export interface FeedPreferences {
   interests: FeedPreference[];
+  /** Optional target training platform */
+  platform?: TrainingPlatform;
   /** Optional content‑style preferences */
   contentPreferences?: ContentPreference[];
   /** Optional list of filter identifiers the user wants to avoid */

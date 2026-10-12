@@ -10,7 +10,7 @@ import {
   normalizeCompletedActions,
 } from "@/lib/feed/training";
 import { generateSignalBlueprint } from "@/lib/feed/blueprint";
-import { loadPreferences, normalizePreferences } from "@/lib/feed/preferences";
+import { loadPreferences, normalizePreferences, savePreferences } from "@/lib/feed/preferences";
 import {
   DiscoveryItem,
   DiscoveryItemType,
@@ -20,14 +20,23 @@ import {
   SignalStatusLabel,
   TrainingAction,
   TrainingActionType,
+  TrainingPlatform,
 } from "@/lib/feed/types";
+import {
+  exportFeedSmithData,
+  validateImportData,
+  importFeedSmithData,
+  clearTrainingHistoryOnly,
+  resetAllFeedSmithData,
+  type FeedSmithExportPayload,
+  type ValidationResult,
+} from "@/lib/feed/dataManagement";
 import { generatePersonalizedDiscovery } from "@/lib/feed/discoveryEngine";
 import {
   DailyHistory,
   calculateConsistency,
   calculateOverallProgress,
   calculateTopicsReinforced,
-  clearTrainingHistoryMeta,
   createTrainingHistoryMeta,
   deriveTrainingHistory,
   isActionableTrainingAction,
@@ -38,7 +47,6 @@ import {
 } from "@/lib/feed/history";
 import { getPlaybookInstruction, type PlatformInstruction } from "@/lib/feed/playbook";
 import {
-  clearUserFeedbackMeta,
   createFeedbackMeta,
   getFeedbackForAction,
   loadUserFeedbackMeta,
@@ -208,7 +216,28 @@ export default function ProfilePage() {
   const [selectedActionForPlaybook, setSelectedActionForPlaybook] = useState<TrainingAction | null>(null);
   const [selectedDiscoveryItem, setSelectedDiscoveryItem] = useState<DiscoveryItem | null>(null);
   const [copiedQuery, setCopiedQuery] = useState<string | null>(null);
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
+
+  // Data management modal state
+  const [showDataModal, setShowDataModal] = useState(false);
+  const [dataModalTab, setDataModalTab] = useState<"export" | "import" | "clear-history" | "reset">("export");
+  const [importJsonText, setImportJsonText] = useState("");
+  const [importValidationResult, setImportValidationResult] = useState<ValidationResult | null>(null);
+  const [dataMessage, setDataMessage] = useState<string | null>(null);
+  const [showClearHistoryConfirm, setShowClearHistoryConfirm] = useState(false);
+  const [showFullResetConfirm, setShowFullResetConfirm] = useState(false);
+
+  // Close modals on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setSelectedActionForPlaybook(null);
+        setSelectedDiscoveryItem(null);
+        setShowDataModal(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -219,6 +248,14 @@ export default function ProfilePage() {
 
     return () => window.clearTimeout(timeout);
   }, []);
+
+  const activePlatform: TrainingPlatform = preferences.platform ?? "youtube";
+
+  const handlePlatformChange = (newPlatform: TrainingPlatform) => {
+    const updated: FeedPreferences = { ...preferences, platform: newPlatform };
+    setPreferences(updated);
+    savePreferences(updated);
+  };
 
   const blueprint = useMemo(
     () => generateSignalBlueprint(preferences),
@@ -237,8 +274,8 @@ export default function ProfilePage() {
   );
 
   const plan = useMemo(
-    () => generateFeedTrainingPlan(blueprint, "instagram", adaptiveSignal),
-    [blueprint, adaptiveSignal]
+    () => generateFeedTrainingPlan(blueprint, activePlatform, adaptiveSignal),
+    [blueprint, activePlatform, adaptiveSignal]
   );
 
   const storageKey = useMemo(() => planStorageKey(plan.days), [plan.days]);
@@ -370,29 +407,81 @@ export default function ProfilePage() {
     saveUserFeedbackMeta(updatedMeta);
   };
 
-  const handleResetTraining = () => {
-    if (!showResetConfirm) {
-      setShowResetConfirm(true);
-      return;
-    }
-
-    setProgress({ planKey: storageKey, completed: {} });
-    const cleared = createTrainingHistoryMeta();
-    setHistoryMeta(cleared);
-    clearTrainingHistoryMeta();
-
-    const clearedFeedback = createFeedbackMeta();
-    setFeedbackMeta(clearedFeedback);
-    clearUserFeedbackMeta();
-
-    setDayIndex(0);
-    setShowResetConfirm(false);
-  };
-
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text);
     setCopiedQuery(text);
     setTimeout(() => setCopiedQuery(null), 2000);
+  };
+
+  const handleDownloadExport = () => {
+    const data = exportFeedSmithData();
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `feedsmith-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setDataMessage("Export downloaded successfully!");
+    setTimeout(() => setDataMessage(null), 3000);
+  };
+
+  const handleCopyExport = () => {
+    const data = exportFeedSmithData();
+    navigator.clipboard.writeText(JSON.stringify(data, null, 2));
+    setDataMessage("Export JSON copied to clipboard!");
+    setTimeout(() => setDataMessage(null), 3000);
+  };
+
+  const handleValidateImport = () => {
+    const res = validateImportData(importJsonText);
+    setImportValidationResult(res);
+  };
+
+  const handleApplyImport = () => {
+    if (!importValidationResult?.success || !importValidationResult.data) return;
+    importFeedSmithData(importValidationResult.data);
+    const loadedPrefs = normalizePreferences(loadPreferences());
+    setPreferences(loadedPrefs);
+    const loadedHistory = loadTrainingHistoryMeta();
+    setHistoryMeta(loadedHistory);
+    const loadedFb = loadUserFeedbackMeta();
+    setFeedbackMeta(loadedFb);
+    setDataMessage("Data imported successfully! Refreshing view...");
+    setTimeout(() => {
+      setShowDataModal(false);
+      setImportJsonText("");
+      setImportValidationResult(null);
+      setDataMessage(null);
+    }, 1000);
+  };
+
+  const handleExecuteClearHistory = () => {
+    clearTrainingHistoryOnly();
+    setProgress({ planKey: storageKey, completed: {} });
+    setHistoryMeta(createTrainingHistoryMeta());
+    setFeedbackMeta(createFeedbackMeta());
+    setShowClearHistoryConfirm(false);
+    setDataMessage("Training history cleared while preserving your Blueprint.");
+    setTimeout(() => setDataMessage(null), 3000);
+  };
+
+  const handleExecuteFullReset = () => {
+    resetAllFeedSmithData();
+    setPreferences({ interests: [], contentPreferences: [], filters: [] });
+    setProgress({ planKey: "", completed: {} });
+    setHistoryMeta(createTrainingHistoryMeta());
+    setFeedbackMeta(createFeedbackMeta());
+    setShowFullResetConfirm(false);
+    setShowDataModal(false);
+    setDataMessage("All preferences and history have been reset.");
+  };
+
+  const handleStartRetraining = () => {
+    clearTrainingHistoryOnly();
+    setProgress({ planKey: storageKey, completed: {} });
+    setHistoryMeta(createTrainingHistoryMeta());
+    setDayIndex(0);
   };
 
   const modalInstruction: PlatformInstruction | null = useMemo(() => {
@@ -783,6 +872,241 @@ export default function ProfilePage() {
         )}
       </AnimatePresence>
 
+      {/* Data Management Modal */}
+      <AnimatePresence>
+        {showDataModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md"
+            onClick={() => setShowDataModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-xl border border-white/15 bg-[#121217] p-6 shadow-2xl"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between border-b border-white/10 pb-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-base font-semibold text-white">Data Management</span>
+                  <span className="rounded-full bg-violet-500/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-violet-300">
+                    Local Only
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowDataModal(false)}
+                  className="text-sm text-white/50 hover:text-white"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {dataMessage && (
+                <div className="mt-4 rounded-lg border border-violet-500/30 bg-violet-500/10 p-3 text-xs text-violet-200">
+                  {dataMessage}
+                </div>
+              )}
+
+              {/* Tabs */}
+              <div className="mt-4 flex gap-1 rounded-lg border border-white/10 bg-white/[0.02] p-1">
+                <button
+                  type="button"
+                  onClick={() => setDataModalTab("export")}
+                  className={`flex-1 rounded-md py-1.5 text-xs font-medium transition ${
+                    dataModalTab === "export" ? "bg-white/10 text-white" : "text-white/50 hover:text-white"
+                  }`}
+                >
+                  Export
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDataModalTab("import")}
+                  className={`flex-1 rounded-md py-1.5 text-xs font-medium transition ${
+                    dataModalTab === "import" ? "bg-white/10 text-white" : "text-white/50 hover:text-white"
+                  }`}
+                >
+                  Import
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDataModalTab("clear-history")}
+                  className={`flex-1 rounded-md py-1.5 text-xs font-medium transition ${
+                    dataModalTab === "clear-history" ? "bg-white/10 text-white" : "text-white/50 hover:text-white"
+                  }`}
+                >
+                  Clear History
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDataModalTab("reset")}
+                  className={`flex-1 rounded-md py-1.5 text-xs font-medium transition ${
+                    dataModalTab === "reset" ? "bg-white/10 text-rose-300" : "text-white/50 hover:text-rose-400"
+                  }`}
+                >
+                  Full Reset
+                </button>
+              </div>
+
+              {/* Tab Contents */}
+              <div className="mt-5">
+                {dataModalTab === "export" && (
+                  <div className="space-y-4">
+                    <p className="text-xs leading-relaxed text-white/70">
+                      Export your complete FeedSmith setup as a portable JSON file. This includes your interests, platform selection, content preferences, suppression rules, 7-day training history, and adaptive feedback.
+                    </p>
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        onClick={handleDownloadExport}
+                        className="flex-1 rounded-md bg-violet-600 py-2 text-xs font-medium text-white transition hover:bg-violet-500"
+                      >
+                        Download Backup (.json)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleCopyExport}
+                        className="flex-1 rounded-md border border-white/15 bg-white/5 py-2 text-xs font-medium text-white transition hover:bg-white/10"
+                      >
+                        Copy JSON to Clipboard
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {dataModalTab === "import" && (
+                  <div className="space-y-4">
+                    <p className="text-xs leading-relaxed text-white/70">
+                      Paste a previously exported FeedSmith JSON backup below. The format is schema-validated before any data is applied.
+                    </p>
+                    <textarea
+                      value={importJsonText}
+                      onChange={e => {
+                        setImportJsonText(e.target.value);
+                        setImportValidationResult(null);
+                      }}
+                      placeholder="Paste exported FeedSmith JSON here..."
+                      rows={6}
+                      className="w-full rounded-md border border-white/10 bg-black/40 p-3 font-mono text-xs text-white placeholder-white/30 focus:border-violet-500 focus:outline-none"
+                    />
+
+                    {importValidationResult && (
+                      <div
+                        className={`rounded-lg border p-3 text-xs ${
+                          importValidationResult.success
+                            ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                            : "border-rose-500/30 bg-rose-500/10 text-rose-300"
+                        }`}
+                      >
+                        {importValidationResult.success
+                          ? `✓ Valid backup! (${importValidationResult.data.preferences.interests.length} interests, platform: ${importValidationResult.data.preferences.platform ?? "youtube"})`
+                          : `✕ Import Error: ${importValidationResult.error}`}
+                      </div>
+                    )}
+
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        onClick={handleValidateImport}
+                        disabled={!importJsonText.trim()}
+                        className="flex-1 rounded-md border border-white/15 bg-white/5 py-2 text-xs font-medium text-white transition hover:bg-white/10 disabled:opacity-50"
+                      >
+                        Validate JSON
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleApplyImport}
+                        disabled={!importValidationResult?.success}
+                        className="flex-1 rounded-md bg-emerald-600 py-2 text-xs font-medium text-white transition hover:bg-emerald-500 disabled:opacity-50"
+                      >
+                        Apply Import
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {dataModalTab === "clear-history" && (
+                  <div className="space-y-4">
+                    <p className="text-xs leading-relaxed text-white/70">
+                      Clears your training progress, checkmarks, consistency score, and adaptive ratings, but <span className="text-white font-medium">keeps your chosen topics, platform, and Signal Blueprint intact</span>.
+                    </p>
+                    <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 text-xs text-amber-200/80">
+                      Use this when you want to repeat the 7-day training cycle with your existing interests.
+                    </div>
+                    {showClearHistoryConfirm ? (
+                      <div className="flex gap-3">
+                        <button
+                          type="button"
+                          onClick={handleExecuteClearHistory}
+                          className="flex-1 rounded-md bg-amber-600 py-2 text-xs font-medium text-white transition hover:bg-amber-500"
+                        >
+                          Confirm Clear History
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowClearHistoryConfirm(false)}
+                          className="flex-1 rounded-md border border-white/15 bg-white/5 py-2 text-xs font-medium text-white transition hover:bg-white/10"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setShowClearHistoryConfirm(true)}
+                        className="w-full rounded-md border border-amber-500/30 bg-amber-500/10 py-2 text-xs font-medium text-amber-300 transition hover:bg-amber-500/20"
+                      >
+                        Clear Training History Only
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {dataModalTab === "reset" && (
+                  <div className="space-y-4">
+                    <p className="text-xs leading-relaxed text-white/70">
+                      Completely erases all saved FeedSmith data in your browser: preferences, Blueprint, training progress, and adaptive tuning.
+                    </p>
+                    <div className="rounded-lg border border-rose-500/20 bg-rose-500/5 p-3 text-xs text-rose-200/80">
+                      Warning: This action cannot be undone unless you have a downloaded JSON backup.
+                    </div>
+                    {showFullResetConfirm ? (
+                      <div className="flex gap-3">
+                        <button
+                          type="button"
+                          onClick={handleExecuteFullReset}
+                          className="flex-1 rounded-md bg-rose-600 py-2 text-xs font-medium text-white transition hover:bg-rose-500"
+                        >
+                          Confirm Full Factory Reset
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowFullResetConfirm(false)}
+                          className="flex-1 rounded-md border border-white/15 bg-white/5 py-2 text-xs font-medium text-white transition hover:bg-white/10"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setShowFullResetConfirm(true)}
+                        className="w-full rounded-md border border-rose-500/30 bg-rose-500/10 py-2 text-xs font-medium text-rose-300 transition hover:bg-rose-500/20"
+                      >
+                        Reset Everything
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="mx-auto max-w-6xl space-y-8">
         {/* Navigation & Header */}
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-6">
@@ -804,7 +1128,13 @@ export default function ProfilePage() {
             </h1>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <Link
+              href="/build/plan"
+              className="rounded-md border border-white/15 bg-white/5 px-3.5 py-1.5 text-xs font-medium text-white transition hover:bg-white/10"
+            >
+              Share Plan ↗
+            </Link>
             <Link
               href="/feed"
               className="rounded-md border border-white/15 bg-white/5 px-3.5 py-1.5 text-xs font-medium text-white transition hover:bg-white/10"
@@ -813,15 +1143,89 @@ export default function ProfilePage() {
             </Link>
             <button
               type="button"
-              onClick={handleResetTraining}
-              className={`rounded-md border px-3 py-1.5 text-xs font-medium transition ${
-                showResetConfirm
-                  ? "border-rose-500/60 bg-rose-500/20 text-rose-300"
-                  : "border-white/10 text-white/50 hover:border-white/20 hover:text-white"
-              }`}
+              onClick={() => setShowDataModal(true)}
+              className="rounded-md border border-white/15 bg-white/5 px-3.5 py-1.5 text-xs font-medium text-white/70 transition hover:border-white/30 hover:text-white"
             >
-              {showResetConfirm ? "Confirm Reset" : "Reset Progress & Feedback"}
+              Data Settings ⚙
             </button>
+          </div>
+        </div>
+
+        {/* Empty State Banner if no interests configured */}
+        {preferences.interests.length === 0 && (
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-6 text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/20 text-2xl text-amber-300">
+              ⚡
+            </div>
+            <h2 className="mt-3 text-lg font-semibold text-white">No Interests Selected Yet</h2>
+            <p className="mx-auto mt-2 max-w-md text-xs leading-relaxed text-amber-200/80">
+              FeedSmith needs to know what topics you want to train your algorithm towards. Configure your interests, platform, and suppression rules to generate an actionable 7-day training blueprint.
+            </p>
+            <div className="mt-4">
+              <Link
+                href="/build"
+                className="inline-flex items-center rounded-md bg-amber-500 px-4 py-2 text-xs font-semibold text-black transition hover:bg-amber-400"
+              >
+                Configure Interests & Blueprint →
+              </Link>
+            </div>
+          </div>
+        )}
+
+        {/* Training Complete / Maintenance Mode Banner */}
+        {preferences.interests.length > 0 && trainingStatus === "TRAINING_COMPLETE" && (
+          <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-6">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-emerald-300">
+                  <span>🏆</span> 7-Day Training Cycle Completed
+                </div>
+                <h2 className="mt-1 text-lg font-semibold text-white">
+                  Maintenance Mode: Your Feed Habits Are Established
+                </h2>
+                <p className="mt-1 text-xs text-emerald-200/80 max-w-2xl">
+                  Great job! You have completed all scheduled training days. To maintain algorithm accuracy, keep engaging with high-signal content or start a retraining cycle whenever your interests evolve.
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleStartRetraining}
+                  className="rounded-md bg-emerald-600 px-4 py-2 text-xs font-medium text-white transition hover:bg-emerald-500"
+                >
+                  Restart 7-Day Cycle
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Target Platform Switcher Bar */}
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-4">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium uppercase tracking-wider text-white/50">
+              Active Platform:
+            </span>
+            <span className="text-xs font-semibold text-white">
+              {activePlatform === "youtube" ? "YouTube" : activePlatform === "instagram" ? "Instagram" : "TikTok"}
+            </span>
+          </div>
+
+          <div className="flex gap-2">
+            {(["youtube", "instagram", "tiktok"] as const).map(p => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => handlePlatformChange(p)}
+                className={`rounded-lg border px-3.5 py-1.5 text-xs font-medium transition ${
+                  activePlatform === p
+                    ? "border-violet-500 bg-violet-600/30 text-white shadow-sm shadow-violet-500/20"
+                    : "border-white/10 bg-white/5 text-white/60 hover:border-white/20 hover:text-white"
+                }`}
+              >
+                {p === "youtube" ? "▶ YouTube" : p === "instagram" ? "📸 Instagram" : "🎵 TikTok"}
+              </button>
+            ))}
           </div>
         </div>
 
