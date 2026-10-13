@@ -120,7 +120,7 @@ export default function ShareablePlanPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#08050f] text-white py-12 px-6">
+    <main className="min-h-screen bg-[#070709] text-white py-10 px-4 sm:px-6 lg:px-8">
       <style jsx>{`
         @media print {
           .no-print { display: none !important; }
@@ -131,53 +131,65 @@ export default function ShareablePlanPage() {
       `}</style>
 
       <div className="max-w-4xl mx-auto space-y-8">
-        <div className="no-print flex items-center justify-between border-b border-white/10 pb-4">
+        {/* Navigation & Header */}
+        <div className="no-print flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/10 bg-[#0c0817]/75 p-5 shadow-2xl backdrop-blur-xl">
           <Link
             href="/build/profile"
-            className="text-xs uppercase tracking-wider text-violet-400 hover:text-white transition flex items-center gap-1.5"
+            className="text-xs font-semibold uppercase tracking-wider text-violet-400 hover:text-white transition flex items-center gap-1.5"
           >
             ← Back to Daily Mission
           </Link>
-          <span className="text-xs text-white/40">Target Platform: <span className="font-semibold uppercase text-violet-300">{plan.platform}</span></span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-white/50">Target Platform:</span>
+            <span className="rounded-md border border-violet-500/30 bg-violet-600/20 px-2 py-0.5 text-xs font-bold uppercase tracking-wider text-violet-300 font-mono">
+              {plan.platform}
+            </span>
+          </div>
         </div>
 
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-white">
+        <div className="rounded-2xl border border-white/10 bg-[#0c0817]/60 p-6 shadow-xl backdrop-blur-md">
+          <div className="flex items-center gap-2">
+            <span className="rounded-full border border-violet-500/30 bg-violet-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-violet-300">
+              Complete Export
+            </span>
+            <span className="text-xs text-white/50">FeedSmith Training Plan</span>
+          </div>
+          <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-white">
             7-Day Feed Training Plan
           </h1>
-          <p className="mt-3 text-sm leading-relaxed text-white/70 max-w-2xl">
+          <p className="mt-3 text-sm leading-relaxed text-white/80 max-w-2xl">
             {plan.summary}
           </p>
-        </div>
 
-        {/* Action buttons */}
-        <div className="no-print flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={handleShare}
-            className="rounded-lg bg-violet-600 px-4 py-2 text-xs font-medium text-white transition hover:bg-violet-500 focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:outline-none"
-          >
-            📤 Share Plan
-          </button>
-          <button
-            type="button"
-            onClick={handleCopy}
-            className="rounded-lg border border-white/15 bg-white/5 px-4 py-2 text-xs font-medium text-white transition hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:outline-none"
-          >
-            📋 Copy Plain Text
-          </button>
-          <button
-            type="button"
-            onClick={handlePrint}
-            className="rounded-lg border border-white/15 bg-white/5 px-4 py-2 text-xs font-medium text-white transition hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:outline-none"
-          >
-            🖨️ Print / Save PDF
-          </button>
-          {copyStatus && (
-            <span className="text-xs font-medium text-emerald-400 animate-fade-in">
-              {copyStatus}
-            </span>
-          )}
+          {/* Action buttons */}
+          <div className="no-print mt-6 flex flex-wrap items-center gap-3 border-t border-white/10 pt-5">
+            <button
+              type="button"
+              onClick={handleShare}
+              className="rounded-xl bg-violet-600 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-violet-600/30 transition hover:bg-violet-500 focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:outline-none"
+            >
+              📤 Share Plan
+            </button>
+            <button
+              type="button"
+              onClick={handleCopy}
+              className="rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-white/10 hover:border-white/30 focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:outline-none"
+            >
+              📋 Copy Plain Text
+            </button>
+            <button
+              type="button"
+              onClick={handlePrint}
+              className="rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-white/10 hover:border-white/30 focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:outline-none"
+            >
+              🖨️ Print / Save PDF
+            </button>
+            {copyStatus && (
+              <span className="rounded-lg border border-emerald-500/30 bg-emerald-500/15 px-3 py-1.5 text-xs font-bold text-emerald-300 animate-fade-in">
+                {copyStatus}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Daily cards */}
@@ -185,25 +197,30 @@ export default function ShareablePlanPage() {
           {plan.days.map(day => (
             <article
               key={day.day}
-              className="rounded-xl border border-white/10 bg-white/[0.02] p-5 space-y-4"
+              className="rounded-2xl border border-white/10 bg-[#0c0817]/60 p-6 shadow-xl backdrop-blur-md space-y-4"
             >
-              <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-white/5 pb-3">
-                <h2 className="text-base font-semibold text-white">
-                  DAY {String(day.day).padStart(2, "0")} — {day.stage}
-                </h2>
-                <span className="text-xs text-violet-300/80">{day.goal}</span>
+              <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-white/10 pb-4">
+                <div className="flex items-center gap-2">
+                  <span className="rounded-md border border-violet-500/40 bg-violet-500/20 px-2 py-0.5 text-xs font-bold uppercase tracking-wider text-violet-300 font-mono">
+                    DAY {String(day.day).padStart(2, "0")}
+                  </span>
+                  <h2 className="text-base font-bold text-white">
+                    {day.stage}
+                  </h2>
+                </div>
+                <span className="text-xs font-medium text-violet-300/90">{day.goal}</span>
               </header>
 
-              <ul className="space-y-2.5 text-xs text-white/80">
+              <ul className="space-y-3 text-xs text-white/80">
                 {day.actions.map(action => (
-                  <li key={action.id} className="flex items-start gap-2.5">
-                    <span className="rounded bg-white/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-violet-300 shrink-0">
+                  <li key={action.id} className="flex items-start gap-3 rounded-xl border border-white/5 bg-[#0d091e]/50 p-3.5">
+                    <span className="rounded-md bg-white/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-violet-300 shrink-0 font-mono">
                       {action.type}
                     </span>
-                    <div>
+                    <div className="space-y-0.5">
                       <span className="font-semibold text-white">{action.title}</span>
                       {action.description && (
-                        <p className="mt-0.5 text-[11px] text-white/60">{action.description}</p>
+                        <p className="text-xs text-white/60 leading-relaxed">{action.description}</p>
                       )}
                     </div>
                   </li>

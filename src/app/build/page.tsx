@@ -37,6 +37,66 @@ const FILTER_OPTIONS: FeedFilter[] = [
   "Promotional content",
 ];
 
+interface StarterPreset {
+  id: string;
+  name: string;
+  icon: string;
+  description: string;
+  interests: { id: string; name: string; strength: number }[];
+  filters: FeedFilter[];
+}
+
+const STARTER_PRESETS: StarterPreset[] = [
+  {
+    id: "developer",
+    name: "Software Engineer",
+    icon: "💻",
+    description: "Programming, AI & Linux tutorials without clickbait",
+    interests: [
+      { id: "programming", name: "Programming", strength: 85 },
+      { id: "ai", name: "AI", strength: 75 },
+      { id: "linux", name: "Linux", strength: 65 },
+    ],
+    filters: ["Clickbait", "Celebrity content"],
+  },
+  {
+    id: "fitness",
+    name: "Fitness & Nutrition",
+    icon: "🏋️",
+    description: "Strength training, recovery & nutrition form guides",
+    interests: [
+      { id: "fitness", name: "Fitness", strength: 85 },
+      { id: "nutrition", name: "Nutrition", strength: 75 },
+      { id: "running", name: "Running", strength: 60 },
+    ],
+    filters: ["Clickbait", "Promotional content"],
+  },
+  {
+    id: "creator",
+    name: "Visual Creative",
+    icon: "📸",
+    description: "Photography techniques, composition & design workflows",
+    interests: [
+      { id: "photography", name: "Photography", strength: 85 },
+      { id: "design", name: "Design", strength: 75 },
+      { id: "wildlife", name: "Wildlife", strength: 60 },
+    ],
+    filters: ["Low-quality content", "Repetitive content"],
+  },
+  {
+    id: "gamer",
+    name: "Gaming & Tech",
+    icon: "🎮",
+    description: "In-depth game analysis, reviews & gaming hardware",
+    interests: [
+      { id: "gaming", name: "Gaming", strength: 85 },
+      { id: "technology", name: "Technology", strength: 70 },
+      { id: "science", name: "Science", strength: 55 },
+    ],
+    filters: ["Promotional content", "Clickbait"],
+  },
+];
+
 function mergeContentPreferences(
   stored: ContentPreference[] | undefined
 ): ContentPreference[] {
@@ -138,6 +198,11 @@ export default function BuildPage() {
     );
   };
 
+  const applyPreset = (preset: StarterPreset) => {
+    setSelected(preset.interests);
+    setSelectedFilters(preset.filters);
+  };
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#08050f] text-white">
       <MoltenMetal
@@ -163,14 +228,28 @@ export default function BuildPage() {
 
       <section className="relative z-10 min-h-screen bg-black/25 px-6 py-10 md:py-14">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-10">
-                    <header>
-            <p className="text-xs font-medium uppercase tracking-[0.3em] text-white/45">
+          <header>
+            <div className="flex items-center justify-between">
+              <Link
+                href="/"
+                className="text-xs uppercase tracking-wider text-white/50 transition hover:text-white"
+              >
+                ← Back to Home
+              </Link>
+              <Link
+                href="/build/profile"
+                className="rounded-full border border-white/10 bg-white/5 px-3.5 py-1 text-xs font-medium text-white/70 transition hover:border-white/30 hover:text-white"
+              >
+                Go to Dashboard →
+              </Link>
+            </div>
+            <p className="mt-4 text-xs font-medium uppercase tracking-[0.3em] text-white/45">
               {step.toString().padStart(2, "0")} / Build your feed
             </p>
-            <h1 className="mt-4 text-4xl font-medium leading-tight text-white md:text-6xl">
+            <h1 className="mt-2 text-4xl font-medium leading-tight text-white md:text-6xl">
               Build your signal.
             </h1>
-            <p className="mt-4 max-w-2xl text-base leading-7 text-white/55">
+            <p className="mt-2 max-w-2xl text-base leading-7 text-white/55">
               Tell FeedSmith what deserves your attention.
             </p>
 
@@ -199,9 +278,9 @@ export default function BuildPage() {
           </header>
 
           <div className="grid gap-10 lg:grid-cols-[minmax(0,0.95fr)_minmax(360px,1.05fr)] lg:items-center">
-            <div className="rounded-lg border border-white/10 bg-black/30 p-5 backdrop-blur-md md:p-7">
+            <div className="rounded-2xl border border-white/10 bg-black/40 p-5 shadow-2xl backdrop-blur-xl md:p-8">
               <AnimatePresence mode="wait">
-                                {step === 1 && (
+                {step === 1 && (
                   <motion.div
                     key="interests"
                     initial={{ opacity: 0, y: 12 }}
@@ -212,15 +291,36 @@ export default function BuildPage() {
                   >
                     <div>
                       {/* Step purpose with user-focused question */}
-                      <p className="text-xs font-medium uppercase tracking-[0.2em] text-violet-400 mb-2">
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-400 mb-1.5">
                         Step 1 — Your Interests
                       </p>
-                      <h2 className="text-2xl font-medium">
+                      <h2 className="text-2xl font-semibold tracking-tight text-white">
                         What do you want more of?
                       </h2>
-                      <p className="mt-2 text-sm leading-6 text-white/45">
-                        Tell FeedSmith what you want to see. Stronger interests influence your training plan more heavily.
+                      <p className="mt-1.5 text-sm leading-relaxed text-white/60">
+                        Choose topics to train your algorithm towards. Or pick a starter persona below:
                       </p>
+                    </div>
+
+                    {/* Starter Presets */}
+                    <div className="rounded-xl border border-violet-500/20 bg-violet-500/5 p-3.5">
+                      <div className="text-[11px] font-semibold uppercase tracking-wider text-violet-300 mb-2.5">
+                        ⚡ Quick Starter Profiles
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                        {STARTER_PRESETS.map(preset => (
+                          <button
+                            key={preset.id}
+                            type="button"
+                            onClick={() => applyPreset(preset)}
+                            className="flex flex-col rounded-lg border border-white/10 bg-white/5 p-2.5 text-left transition hover:border-violet-400/50 hover:bg-violet-500/10 hover:scale-[1.02]"
+                          >
+                            <span className="text-base">{preset.icon}</span>
+                            <span className="mt-1 text-xs font-semibold text-white">{preset.name}</span>
+                            <span className="mt-0.5 text-[10px] text-white/50 line-clamp-2">{preset.description}</span>
+                          </button>
+                        ))}
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3 md:grid-cols-3">

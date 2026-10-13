@@ -137,6 +137,45 @@ function getStatusBadgeStyle(status: SignalStatusLabel): string {
   }
 }
 
+function getStatusDotColor(status: SignalStatusLabel): string {
+  switch (status) {
+    case "Core":
+      return "bg-violet-400";
+    case "Strong":
+      return "bg-indigo-400";
+    case "Growing":
+      return "bg-emerald-400";
+    case "Established":
+      return "bg-cyan-400";
+    case "Emerging":
+      return "bg-amber-400";
+    case "Refining":
+      return "bg-rose-400";
+    case "Explored":
+    default:
+      return "bg-white/40";
+  }
+}
+
+function getActionTypeBadge(type: TrainingActionType): { label: string; icon: string; className: string } {
+  switch (type) {
+    case "WATCH":
+      return { label: "WATCH", icon: "▶", className: "border-sky-500/30 bg-sky-500/15 text-sky-300" };
+    case "SEARCH":
+      return { label: "SEARCH", icon: "🔍", className: "border-cyan-500/30 bg-cyan-500/15 text-cyan-300" };
+    case "FOLLOW":
+      return { label: "FOLLOW", icon: "👤", className: "border-violet-500/30 bg-violet-500/15 text-violet-300" };
+    case "SUBSCRIBE":
+      return { label: "SUBSCRIBE", icon: "⭐", className: "border-fuchsia-500/30 bg-fuchsia-500/15 text-fuchsia-300" };
+    case "ENGAGE":
+      return { label: "ENGAGE", icon: "💬", className: "border-emerald-500/30 bg-emerald-500/15 text-emerald-300" };
+    case "AVOID":
+      return { label: "AVOID", icon: "🛡️", className: "border-rose-500/30 bg-rose-500/15 text-rose-300" };
+    default:
+      return { label: type, icon: "⚡", className: "border-white/20 bg-white/10 text-white/80" };
+  }
+}
+
 function loadTrainingProgress(planKey: string): TrainingProgress {
   if (typeof window === "undefined") {
     return { planKey, completed: {} };
@@ -1109,42 +1148,43 @@ export default function ProfilePage() {
 
       <div className="mx-auto max-w-6xl space-y-8">
         {/* Navigation & Header */}
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-6">
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/10 bg-[#0c0817]/75 p-5 shadow-2xl backdrop-blur-xl">
           <div>
             <div className="flex items-center gap-3">
               <Link
                 href="/build"
-                className="text-xs uppercase tracking-wider text-white/50 transition hover:text-white"
+                className="text-xs font-semibold uppercase tracking-wider text-white/60 transition hover:text-white"
               >
                 ← Back to Blueprint
               </Link>
               <span className="text-white/20">|</span>
-              <span className="text-xs uppercase tracking-wider text-violet-400">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-violet-500/30 bg-violet-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-violet-300">
+                <span className="h-1.5 w-1.5 rounded-full bg-violet-400 animate-pulse" />
                 Feed Training Engine
               </span>
             </div>
-            <h1 className="mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+            <h1 className="mt-2 text-2xl font-bold tracking-tight text-white sm:text-3xl">
               Signal Blueprint & Discovery Plan
             </h1>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2.5">
             <Link
               href="/build/plan"
-              className="rounded-md border border-white/15 bg-white/5 px-3.5 py-1.5 text-xs font-medium text-white transition hover:bg-white/10"
+              className="rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-xs font-semibold text-white transition hover:bg-white/10 hover:border-white/30"
             >
               Share Plan ↗
             </Link>
             <Link
               href="/feed"
-              className="rounded-md border border-white/15 bg-white/5 px-3.5 py-1.5 text-xs font-medium text-white transition hover:bg-white/10"
+              className="rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-xs font-semibold text-white transition hover:bg-white/10 hover:border-white/30"
             >
               Preview Feed →
             </Link>
             <button
               type="button"
               onClick={() => setShowDataModal(true)}
-              className="rounded-md border border-white/15 bg-white/5 px-3.5 py-1.5 text-xs font-medium text-white/70 transition hover:border-white/30 hover:text-white"
+              className="rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-xs font-semibold text-white/80 transition hover:border-white/30 hover:text-white hover:bg-white/10"
             >
               Data Settings ⚙
             </button>
@@ -1153,7 +1193,7 @@ export default function ProfilePage() {
 
         {/* Empty State Banner if no interests configured */}
         {preferences.interests.length === 0 && (
-          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-6 text-center">
+          <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-6 text-center shadow-xl">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/20 text-2xl text-amber-300">
               ⚡
             </div>
@@ -1164,7 +1204,7 @@ export default function ProfilePage() {
             <div className="mt-4">
               <Link
                 href="/build"
-                className="inline-flex items-center rounded-md bg-amber-500 px-4 py-2 text-xs font-semibold text-black transition hover:bg-amber-400"
+                className="inline-flex items-center rounded-xl bg-amber-500 px-5 py-2.5 text-xs font-bold text-black transition hover:bg-amber-400 shadow-md shadow-amber-500/20"
               >
                 Configure Interests & Blueprint →
               </Link>
@@ -1174,7 +1214,7 @@ export default function ProfilePage() {
 
         {/* Training Complete / Maintenance Mode Banner */}
         {preferences.interests.length > 0 && trainingStatus === "TRAINING_COMPLETE" && (
-          <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-6">
+          <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-6 shadow-xl">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-emerald-300">
@@ -1183,7 +1223,7 @@ export default function ProfilePage() {
                 <h2 className="mt-1 text-lg font-semibold text-white">
                   Maintenance Mode: Your Feed Habits Are Established
                 </h2>
-                <p className="mt-1 text-xs text-emerald-200/80 max-w-2xl">
+                <p className="mt-1 text-xs text-emerald-200/80 max-w-2xl leading-relaxed">
                   Great job! You have completed all scheduled training days. To maintain algorithm accuracy, keep engaging with high-signal content or start a retraining cycle whenever your interests evolve.
                 </p>
               </div>
@@ -1191,7 +1231,7 @@ export default function ProfilePage() {
                 <button
                   type="button"
                   onClick={handleStartRetraining}
-                  className="rounded-md bg-emerald-600 px-4 py-2 text-xs font-medium text-white transition hover:bg-emerald-500"
+                  className="rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-bold text-white transition hover:bg-emerald-500 shadow-md shadow-emerald-600/30"
                 >
                   Restart 7-Day Cycle
                 </button>
@@ -1201,12 +1241,12 @@ export default function ProfilePage() {
         )}
 
         {/* Target Platform Switcher Bar */}
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-4">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-medium uppercase tracking-wider text-white/50">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-[#0c0817]/60 p-4 shadow-lg backdrop-blur-md">
+          <div className="flex items-center gap-2.5">
+            <span className="text-xs font-semibold uppercase tracking-wider text-white/50">
               Active Platform:
             </span>
-            <span className="text-xs font-semibold text-white">
+            <span className="text-xs font-bold text-white">
               {activePlatform === "youtube" ? "YouTube" : activePlatform === "instagram" ? "Instagram" : "TikTok"}
             </span>
           </div>
@@ -1217,10 +1257,10 @@ export default function ProfilePage() {
                 key={p}
                 type="button"
                 onClick={() => handlePlatformChange(p)}
-                className={`rounded-lg border px-3.5 py-1.5 text-xs font-medium transition ${
+                className={`rounded-xl border px-4 py-2 text-xs font-semibold transition ${
                   activePlatform === p
-                    ? "border-violet-500 bg-violet-600/30 text-white shadow-sm shadow-violet-500/20"
-                    : "border-white/10 bg-white/5 text-white/60 hover:border-white/20 hover:text-white"
+                    ? "border-violet-500 bg-violet-600/30 text-white shadow-md shadow-violet-600/25 ring-1 ring-violet-400/40"
+                    : "border-white/10 bg-white/5 text-white/60 hover:border-white/20 hover:text-white hover:bg-white/10"
                 }`}
               >
                 {p === "youtube" ? "▶ YouTube" : p === "instagram" ? "📸 Instagram" : "🎵 TikTok"}
@@ -1231,15 +1271,15 @@ export default function ProfilePage() {
 
         {/* Adaptive Feedback Explanation Banner */}
         {adaptiveSignal.explanations.length > 0 && (
-          <div className="rounded-xl border border-violet-500/30 bg-violet-500/10 p-4">
+          <div className="rounded-2xl border border-violet-500/30 bg-violet-500/10 p-5 shadow-lg">
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-violet-300">
               <span className="inline-block h-2 w-2 rounded-full bg-violet-400 animate-pulse" />
               Adaptive Training Engine Active
             </div>
-            <p className="mt-1 text-xs text-violet-200/80">
+            <p className="mt-1.5 text-xs text-violet-200/80">
               Your feedback & training progress have dynamically tuned this plan:
             </p>
-            <ul className="mt-2 space-y-1 text-xs text-white/85">
+            <ul className="mt-2.5 space-y-1.5 text-xs text-white/90">
               {adaptiveSignal.explanations.map((exp, idx) => (
                 <li key={idx} className="flex items-start gap-2">
                   <span className="text-violet-400">⚡</span> {exp}
@@ -1251,19 +1291,19 @@ export default function ProfilePage() {
 
         {/* Top Blueprint Summary */}
         <div className="grid gap-6 lg:grid-cols-3">
-          <div className="rounded-xl border border-white/10 bg-white/[0.02] p-5 lg:col-span-2">
+          <div className="rounded-2xl border border-white/10 bg-[#0c0817]/60 p-6 shadow-xl backdrop-blur-md lg:col-span-2">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium uppercase tracking-wider text-white/40">
+              <span className="text-xs font-semibold uppercase tracking-wider text-white/50">
                 Signal Summary & Status
               </span>
-              <span className="text-xs text-white/50">
+              <span className="text-xs text-white/60 font-mono">
                 Derived Strength:{" "}
-                <span className="font-semibold text-white">
+                <span className="font-bold text-white">
                   {adaptiveSignal.overallStrength}%
                 </span>
                 {adaptiveSignal.overallStrength !== blueprint.overallStrength && (
                   <span
-                    className={`ml-1.5 text-[11px] font-semibold ${
+                    className={`ml-1.5 font-bold ${
                       adaptiveSignal.overallStrength > blueprint.overallStrength
                         ? "text-emerald-400"
                         : "text-amber-400"
@@ -1282,19 +1322,21 @@ export default function ProfilePage() {
             <div className="mt-4 flex flex-wrap gap-2">
               {Object.values(adaptiveSignal.topics).map(topic => {
                 const badgeStyle = getStatusBadgeStyle(topic.statusLabel);
+                const dotColor = getStatusDotColor(topic.statusLabel);
                 return (
                   <span
                     key={topic.id}
                     className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium ${badgeStyle}`}
                     title={`Status: ${topic.statusLabel}`}
                   >
+                    <span className={`h-1.5 w-1.5 rounded-full ${dotColor}`} />
                     <span>{topic.name} ({topic.adjustedStrength}%)</span>
                     {topic.delta !== 0 && (
-                      <span className="text-[10px] opacity-80">
+                      <span className="text-[10px] font-mono opacity-80">
                         {topic.delta > 0 ? `+${topic.delta}` : topic.delta}
                       </span>
                     )}
-                    <span className="rounded bg-white/10 px-1.5 py-0.5 text-[9px] uppercase tracking-wider opacity-80">
+                    <span className="rounded bg-white/10 px-1.5 py-0.5 text-[9px] uppercase tracking-wider opacity-80 font-semibold">
                       {topic.statusLabel}
                     </span>
                   </span>
@@ -1303,7 +1345,7 @@ export default function ProfilePage() {
               {blueprint.suppressed.map(filter => (
                 <span
                   key={filter}
-                  className="rounded-full border border-rose-500/30 bg-rose-500/10 px-3 py-1 text-xs text-rose-300"
+                  className="rounded-full border border-rose-500/30 bg-rose-500/10 px-3 py-1 text-xs text-rose-300 font-medium"
                 >
                   Avoid: {filter}
                 </span>
@@ -1312,34 +1354,36 @@ export default function ProfilePage() {
           </div>
 
           {/* Progress Card */}
-          <div className="rounded-xl border border-white/10 bg-white/[0.02] p-5">
-            <span className="text-xs font-medium uppercase tracking-wider text-white/40">
-              Training Progress
-            </span>
-            <div className="mt-4 flex items-baseline justify-between">
-              <div className="text-3xl font-bold text-white">
-                {planProgress.progressPercent}%
+          <div className="rounded-2xl border border-white/10 bg-[#0c0817]/60 p-6 shadow-xl backdrop-blur-md flex flex-col justify-between">
+            <div>
+              <span className="text-xs font-semibold uppercase tracking-wider text-white/50">
+                Training Progress
+              </span>
+              <div className="mt-4 flex items-baseline justify-between">
+                <div className="text-4xl font-extrabold tracking-tight text-white font-mono">
+                  {planProgress.progressPercent}%
+                </div>
+                <div className="text-xs text-white/60 font-mono">
+                  {planProgress.completedCount} of {planProgress.totalActions} actions
+                </div>
               </div>
-              <div className="text-xs text-white/50">
-                {planProgress.completedCount} of {planProgress.totalActions} actions
+
+              <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-white/10">
+                <div
+                  className="h-full bg-gradient-to-r from-violet-600 via-indigo-500 to-fuchsia-500 transition-all duration-300"
+                  style={{ width: `${planProgress.progressPercent}%` }}
+                />
               </div>
             </div>
 
-            <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-white/10">
-              <div
-                className="h-full bg-violet-500 transition-all duration-300"
-                style={{ width: `${planProgress.progressPercent}%` }}
-              />
-            </div>
-
-            <div className="mt-4 border-t border-white/10 pt-3 text-xs text-white/60">
-              Status: <span className="font-medium text-white">{trainingStatus.replace(/_/g, " ")}</span>
+            <div className="mt-5 border-t border-white/10 pt-3 text-xs text-white/60">
+              Status: <span className="font-semibold text-white uppercase tracking-wider">{trainingStatus.replace(/_/g, " ")}</span>
             </div>
           </div>
         </div>
 
         {/* 7-Day Day Selector */}
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 lg:grid-cols-7">
           {plan.days.map((day, idx) => {
             const isSelected = idx === dayIndex;
             const dayMeta = history.dailyHistory.find((d: DailyHistory) => d.day === day.day);
@@ -1350,23 +1394,27 @@ export default function ProfilePage() {
                 key={day.day}
                 type="button"
                 onClick={() => setDayIndex(idx)}
-                className={`flex flex-col justify-between rounded-xl border p-3.5 text-left transition ${
+                className={`flex flex-col justify-between rounded-xl border p-4 text-left transition-all ${
                   isSelected
-                    ? "border-violet-400 bg-violet-500/10"
+                    ? "border-violet-500 bg-violet-600/15 shadow-lg shadow-violet-600/15 ring-1 ring-violet-400/40 scale-[1.02]"
                     : isComplete
-                    ? "border-emerald-500/30 bg-emerald-500/5 hover:border-emerald-500/50"
-                    : "border-white/10 bg-white/[0.02] hover:border-white/20"
+                    ? "border-emerald-500/30 bg-emerald-500/5 hover:border-emerald-500/50 hover:bg-emerald-500/10"
+                    : "border-white/10 bg-[#0c0817]/40 hover:border-white/25 hover:bg-white/[0.05]"
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-semibold text-white/50">
+                  <span className={`text-[11px] font-semibold tracking-wider uppercase ${isSelected ? "text-violet-300" : "text-white/50"}`}>
                     Day {day.day}
                   </span>
-                  {isComplete && (
-                    <span className="text-xs text-emerald-400">✓</span>
-                  )}
+                  {isComplete ? (
+                    <span className="flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500/20 text-[10px] font-bold text-emerald-400">
+                      ✓
+                    </span>
+                  ) : isSelected ? (
+                    <span className="h-1.5 w-1.5 rounded-full bg-violet-400 animate-ping" />
+                  ) : null}
                 </div>
-                <div className="mt-2 text-xs font-semibold text-white">
+                <div className="mt-3 text-xs font-semibold text-white">
                   {day.stage}
                 </div>
               </button>
@@ -1375,7 +1423,7 @@ export default function ProfilePage() {
         </div>
 
         {/* Daily Mission Actions */}
-        <div className="rounded-xl border border-white/10 bg-white/[0.02] p-6">
+        <div className="rounded-2xl border border-white/10 bg-[#0c0817]/60 p-6 shadow-xl backdrop-blur-md">
           <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-4">
             <div>
               <span className="text-xs font-semibold uppercase tracking-wider text-violet-400">
@@ -1385,7 +1433,7 @@ export default function ProfilePage() {
                 {currentDay.goal}
               </h2>
             </div>
-            <div className="text-xs text-white/50">
+            <div className="text-xs text-white/60 font-mono">
               {dayProgress.completedCount} of {dayProgress.totalActions} completed ({dayProgress.progressPercent}%)
             </div>
           </div>
@@ -1393,56 +1441,69 @@ export default function ProfilePage() {
           <div className="mt-6 space-y-6">
             {currentGroupedActions.map(([type, actions]) => (
               <div key={type} className="space-y-3">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-white/40">
-                  {ACTION_LABELS[type]} ({actions.length})
-                </h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-white/50">
+                    {ACTION_LABELS[type]}
+                  </h3>
+                  <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-mono text-white/60">
+                    {actions.length}
+                  </span>
+                </div>
 
                 <div className="space-y-2.5">
                   {actions.map(action => {
                     const isCompleted = Boolean(progress.completed[action.id]);
                     const detail = actionDetail(action);
                     const isActionable = isActionableTrainingAction(action);
+                    const typeBadge = getActionTypeBadge(action.type);
 
                     return (
                       <div
                         key={action.id}
-                        className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3.5 transition ${
+                        className={`flex flex-wrap items-center justify-between gap-3.5 rounded-xl border p-4 transition duration-200 ${
                           isCompleted
-                            ? "border-emerald-500/25 bg-emerald-500/5 text-white/60"
-                            : "border-white/10 bg-black/20 hover:border-white/20"
+                            ? "border-emerald-500/30 bg-emerald-950/15 text-white/70"
+                            : "border-white/10 bg-[#0d091e]/60 hover:border-violet-500/40 hover:bg-[#110d26]/80 shadow-md"
                         }`}
                       >
-                        <div className="flex items-start gap-3">
+                        <div className="flex items-start gap-3.5 flex-1 min-w-[280px]">
                           {isActionable && (
                             <button
                               type="button"
                               onClick={() => toggleAction(action.id)}
-                              className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition ${
+                              aria-label={isCompleted ? "Mark incomplete" : "Mark complete"}
+                              className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition ${
                                 isCompleted
-                                  ? "border-emerald-500 bg-emerald-500 text-black"
-                                  : "border-white/30 hover:border-white"
+                                  ? "border-emerald-400 bg-emerald-500 text-black shadow-sm shadow-emerald-500/40"
+                                  : "border-white/20 bg-white/5 hover:border-violet-400 hover:bg-violet-500/20"
                               }`}
                             >
-                              {isCompleted && <span className="text-[10px] font-bold">✓</span>}
+                              {isCompleted && <span className="text-xs font-bold leading-none">✓</span>}
                             </button>
                           )}
-                          <div>
-                            <div className="text-xs font-semibold text-white">
-                              {action.title}
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${typeBadge.className}`}>
+                                <span>{typeBadge.icon}</span>
+                                <span>{typeBadge.label}</span>
+                              </span>
+                              <span className={`text-xs font-semibold ${isCompleted ? "line-through text-white/50" : "text-white"}`}>
+                                {action.title}
+                              </span>
                             </div>
-                            <div className="mt-0.5 text-[11px] text-white/60">
+                            <p className="text-xs text-white/60 leading-relaxed">
                               {action.description}
-                            </div>
+                            </p>
                             {detail && (
-                              <div className="mt-1 text-[10px] text-violet-300/80">
+                              <div className="text-[11px] font-medium text-violet-300/80">
                                 {detail}
                               </div>
                             )}
                           </div>
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-2">
-                          <div className="flex items-center gap-1">
+                        <div className="flex flex-wrap items-center gap-2.5">
+                          <div className="flex items-center gap-1 rounded-lg border border-white/5 bg-black/40 p-1">
                             {FEEDBACK_OPTIONS.map(opt => {
                               const fb = getFeedbackForAction(feedbackMeta, action.id);
                               const isSelected = fb?.value === opt.value;
@@ -1468,10 +1529,10 @@ export default function ProfilePage() {
                                       }
                                     )
                                   }
-                                  className={`rounded px-1.5 py-0.5 text-[10px] font-medium transition border ${
+                                  className={`rounded px-2 py-0.5 text-[10px] font-medium transition border ${
                                     isSelected
                                       ? opt.activeClass
-                                      : "border-white/10 bg-white/5 text-white/50 hover:text-white"
+                                      : "border-transparent bg-transparent text-white/50 hover:text-white hover:bg-white/5"
                                   }`}
                                   title={opt.label}
                                 >
@@ -1483,9 +1544,10 @@ export default function ProfilePage() {
                           <button
                             type="button"
                             onClick={() => setSelectedActionForPlaybook(action)}
-                            className="rounded-md border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] text-white/70 hover:bg-white/10 hover:text-white"
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-violet-500/30 bg-violet-500/10 px-3 py-1.5 text-xs font-medium text-violet-200 transition hover:bg-violet-500/20 hover:border-violet-400"
                           >
-                            Playbook Guide
+                            <span>📖</span>
+                            <span>Playbook Guide</span>
                           </button>
                         </div>
                       </div>
@@ -1498,88 +1560,92 @@ export default function ProfilePage() {
         </div>
 
         {/* Personalized Discovery Section */}
-        <div className="rounded-xl border border-violet-500/20 bg-gradient-to-b from-violet-950/10 to-transparent p-6">
-          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-4">
+        <div className="rounded-2xl border border-violet-500/30 bg-gradient-to-b from-violet-950/20 via-[#0c0817]/80 to-[#0c0817]/60 p-6 shadow-2xl backdrop-blur-xl">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-5">
             <div>
-              <div className="flex items-center gap-2">
-                <span className="rounded-full bg-violet-500/20 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-violet-300">
+              <div className="flex items-center gap-2.5">
+                <span className="rounded-full border border-violet-500/40 bg-violet-500/20 px-3 py-0.5 text-[10px] font-bold uppercase tracking-wider text-violet-300">
                   {discoveryFeed.stageTitle}
                 </span>
-                <span className="text-xs text-white/40">Personalized Discovery Engine</span>
+                <span className="text-xs font-semibold uppercase tracking-wider text-white/50">Personalized Discovery Engine</span>
               </div>
-              <h2 className="mt-1.5 text-lg font-semibold text-white">
+              <h2 className="mt-2 text-xl font-bold text-white">
                 {discoveryFeed.stageGoal}
               </h2>
             </div>
-            <span className="text-xs text-white/40">
-              Stage: <span className="font-semibold uppercase text-violet-300">{discoveryFeed.stage}</span>
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-white/50">Stage:</span>
+              <span className="rounded-lg border border-violet-500/30 bg-violet-600/20 px-2.5 py-1 text-xs font-bold uppercase tracking-wider text-violet-300 font-mono">
+                {discoveryFeed.stage}
+              </span>
+            </div>
           </div>
 
           <div className="mt-6 grid gap-6 lg:grid-cols-3">
             {/* Search Paths */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-white/50">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-white/60">
                   Curated Search Paths
                 </h3>
-                <span className="text-[10px] text-violet-300/70">Broad → Specific → Discovery</span>
+                <span className="text-[10px] text-violet-300/80 font-mono">Broad → Specific → Discovery</span>
               </div>
 
-              <div className="space-y-2.5">
+              <div className="space-y-3">
                 {discoveryFeed.searchPaths.length === 0 ? (
-                  <div className="rounded-lg border border-white/5 p-4 text-xs text-white/40">
+                  <div className="rounded-xl border border-white/5 p-4 text-xs text-white/40">
                     No search queries available for this stage.
                   </div>
                 ) : (
                   discoveryFeed.searchPaths.map(item => (
                     <div
                       key={item.id}
-                      className="group rounded-lg border border-white/10 bg-black/25 p-3.5 transition hover:border-violet-500/40"
+                      className="group rounded-xl border border-white/10 bg-[#0d091e]/60 p-4 transition-all duration-200 hover:border-violet-500/40 hover:bg-[#120e28]/80 shadow-md flex flex-col justify-between"
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
+                      <div>
+                        <div className="flex items-start justify-between gap-2">
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="text-[10px] font-semibold uppercase tracking-wider text-violet-400">
-                              {item.difficulty} · {item.topicName}
+                            <span className="rounded-md border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-cyan-300">
+                              🔍 {item.difficulty}
                             </span>
-                            <span className="rounded border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.2 text-[9px] font-medium text-emerald-300">
-                              Curated Discovery
+                            <span className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-300">
+                              {item.topicName}
                             </span>
                           </div>
-                          <div className="mt-1 text-xs font-medium text-white">
-                            &ldquo;{item.title}&rdquo;
-                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedDiscoveryItem(item)}
+                            className="shrink-0 text-xs font-semibold text-violet-300 hover:text-white transition"
+                          >
+                            Inspect →
+                          </button>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => setSelectedDiscoveryItem(item)}
-                          className="shrink-0 text-[11px] text-violet-300 hover:text-white"
-                        >
-                          Inspect →
-                        </button>
+
+                        <div className="mt-2.5 rounded-lg border border-white/10 bg-black/40 px-3 py-2 font-mono text-xs text-white">
+                          &ldquo;{item.title}&rdquo;
+                        </div>
+
+                        {item.whatToLookFor ? (
+                          <p className="mt-2.5 text-xs leading-relaxed text-amber-200/80 line-clamp-2">
+                            <span className="font-bold text-amber-400">Look for:</span> {item.whatToLookFor}
+                          </p>
+                        ) : (
+                          <p className="mt-2.5 text-xs leading-relaxed text-white/60">
+                            {item.reason}
+                          </p>
+                        )}
                       </div>
 
-                      {item.whatToLookFor ? (
-                        <p className="mt-2 text-[11px] leading-relaxed text-amber-200/80 line-clamp-2">
-                          <span className="font-semibold text-amber-400">Look for:</span> {item.whatToLookFor}
-                        </p>
-                      ) : (
-                        <p className="mt-2 text-[11px] leading-relaxed text-white/60">
-                          {item.reason}
-                        </p>
-                      )}
-
-                      <div className="mt-3 flex items-center justify-between border-t border-white/5 pt-2">
+                      <div className="mt-4 flex items-center justify-between border-t border-white/5 pt-3">
                         <div className="flex items-center gap-2">
                           <button
                             type="button"
                             onClick={() => handleCopy(item.searchQuery || item.title)}
-                            className="text-[10px] text-cyan-300/80 hover:text-cyan-200"
+                            className="rounded border border-cyan-500/30 bg-cyan-500/10 px-2 py-1 text-[11px] font-medium text-cyan-300 hover:bg-cyan-500/20 transition"
                           >
-                            {copiedQuery === (item.searchQuery || item.title) ? "✓ Copied" : "📋 Copy Search"}
+                            {copiedQuery === (item.searchQuery || item.title) ? "✓ Copied" : "📋 Copy"}
                           </button>
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1 rounded border border-white/5 bg-black/30 p-0.5">
                             {FEEDBACK_OPTIONS.map(opt => {
                               const targetId = item.actionId || item.id;
                               const fb = getFeedbackForAction(feedbackMeta, targetId);
@@ -1601,10 +1667,10 @@ export default function ProfilePage() {
                                       }
                                     )
                                   }
-                                  className={`rounded px-1 py-0.5 text-[9px] font-medium transition border ${
+                                  className={`rounded px-1.5 py-0.5 text-[9px] font-medium transition border ${
                                     isSelected
                                       ? opt.activeClass
-                                      : "border-white/5 bg-white/[0.02] text-white/40 hover:text-white"
+                                      : "border-transparent bg-transparent text-white/40 hover:text-white"
                                   }`}
                                   title={opt.label}
                                 >
@@ -1619,11 +1685,13 @@ export default function ProfilePage() {
                           <button
                             type="button"
                             onClick={() => toggleAction(item.actionId!)}
-                            className={`text-[10px] font-medium ${
-                              item.completed ? "text-emerald-400" : "text-white/50 hover:text-white"
+                            className={`rounded-md px-2.5 py-1 text-[11px] font-bold transition ${
+                              item.completed
+                                ? "bg-emerald-500/20 text-emerald-300"
+                                : "bg-white/5 text-white/60 hover:bg-white/10 hover:text-white"
                             }`}
                           >
-                            {item.completed ? "✓ Completed" : "Mark Done"}
+                            {item.completed ? "✓ Done" : "Mark Done"}
                           </button>
                         )}
                       </div>
@@ -1636,64 +1704,66 @@ export default function ProfilePage() {
             {/* Who to Follow / Creators */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-white/50">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-white/60">
                   Who to Follow
                 </h3>
-                <span className="text-[10px] text-white/40">Curated & Creator Guidance</span>
+                <span className="text-[10px] text-white/50">Curated & Guidance</span>
               </div>
 
-              <div className="space-y-2.5">
+              <div className="space-y-3">
                 {discoveryFeed.curatedCreators.length === 0 ? (
-                  <div className="rounded-lg border border-white/5 p-4 text-xs text-white/40">
+                  <div className="rounded-xl border border-white/5 p-4 text-xs text-white/40">
                     No creators cataloged for current topics.
                   </div>
                 ) : (
                   discoveryFeed.curatedCreators.map(item => (
                     <div
                       key={item.id}
-                      className="group rounded-lg border border-white/10 bg-black/25 p-3.5 transition hover:border-violet-500/40"
+                      className="group rounded-xl border border-white/10 bg-[#0d091e]/60 p-4 transition-all duration-200 hover:border-violet-500/40 hover:bg-[#120e28]/80 shadow-md flex flex-col justify-between"
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="text-xs font-semibold text-white">
-                              {item.title}
+                      <div>
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-xs font-bold text-white">
+                                {item.title}
+                              </span>
+                              {item.provenance === "creator_guidance" ? (
+                                <span className="rounded-md border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-bold text-amber-300 uppercase">
+                                  Guidance
+                                </span>
+                              ) : (
+                                <span className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-bold text-emerald-300 uppercase">
+                                  Curated
+                                </span>
+                              )}
+                            </div>
+                            <span className="mt-0.5 block text-[11px] text-white/50">
+                              {item.creator?.platform ?? "Platform"} · {item.creator?.topics.join(", ")}
                             </span>
-                            {item.provenance === "creator_guidance" ? (
-                              <span className="rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.2 text-[9px] font-medium text-amber-300">
-                                Creator Guidance
-                              </span>
-                            ) : (
-                              <span className="rounded border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.2 text-[9px] font-medium text-emerald-300">
-                                Curated Creator
-                              </span>
-                            )}
                           </div>
-                          <span className="text-[10px] text-white/40">
-                            {item.creator?.platform ?? "Platform"} · {item.creator?.topics.join(", ")}
-                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedDiscoveryItem(item)}
+                            className="shrink-0 text-xs font-semibold text-violet-300 hover:text-white transition"
+                          >
+                            Inspect →
+                          </button>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => setSelectedDiscoveryItem(item)}
-                          className="shrink-0 text-[11px] text-violet-300 hover:text-white"
-                        >
-                          Inspect →
-                        </button>
+
+                        {item.whatToLookFor ? (
+                          <p className="mt-2.5 text-xs leading-relaxed text-amber-200/80 line-clamp-2">
+                            <span className="font-bold text-amber-400">Criteria:</span> {item.whatToLookFor}
+                          </p>
+                        ) : (
+                          <p className="mt-2.5 text-xs leading-relaxed text-white/60">
+                            {item.reason}
+                          </p>
+                        )}
                       </div>
 
-                      {item.whatToLookFor ? (
-                        <p className="mt-2 text-[11px] leading-relaxed text-amber-200/80 line-clamp-2">
-                          <span className="font-semibold text-amber-400">Criteria:</span> {item.whatToLookFor}
-                        </p>
-                      ) : (
-                        <p className="mt-2 text-[11px] leading-relaxed text-white/60">
-                          {item.reason}
-                        </p>
-                      )}
-
-                      <div className="mt-3 flex items-center justify-between border-t border-white/5 pt-2">
-                        <div className="flex items-center gap-1">
+                      <div className="mt-4 flex items-center justify-between border-t border-white/5 pt-3">
+                        <div className="flex items-center gap-1 rounded border border-white/5 bg-black/30 p-0.5">
                           {FEEDBACK_OPTIONS.map(opt => {
                             const targetId = item.actionId || item.id;
                             const fb = getFeedbackForAction(feedbackMeta, targetId);
@@ -1715,10 +1785,10 @@ export default function ProfilePage() {
                                     }
                                   )
                                 }
-                                className={`rounded px-1 py-0.5 text-[9px] font-medium transition border ${
+                                className={`rounded px-1.5 py-0.5 text-[9px] font-medium transition border ${
                                   isSelected
                                     ? opt.activeClass
-                                    : "border-white/5 bg-white/[0.02] text-white/40 hover:text-white"
+                                    : "border-transparent bg-transparent text-white/40 hover:text-white"
                                 }`}
                                 title={opt.label}
                               >
@@ -1731,8 +1801,10 @@ export default function ProfilePage() {
                           <button
                             type="button"
                             onClick={() => toggleAction(item.actionId!)}
-                            className={`text-[10px] font-medium ${
-                              item.completed ? "text-emerald-400" : "text-white/50 hover:text-white"
+                            className={`rounded-md px-2.5 py-1 text-[11px] font-bold transition ${
+                              item.completed
+                                ? "bg-emerald-500/20 text-emerald-300"
+                                : "bg-white/5 text-white/60 hover:bg-white/10 hover:text-white"
                             }`}
                           >
                             {item.completed ? "✓ Followed" : "Mark Followed"}
@@ -1748,44 +1820,44 @@ export default function ProfilePage() {
             {/* Subtopics & Crossover */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-white/50">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-white/60">
                   Crossover & Subtopic Radar
                 </h3>
-                <span className="text-[10px] text-violet-300/70">Topic Expansion</span>
+                <span className="text-[10px] text-violet-300/80 font-mono">Topic Expansion</span>
               </div>
 
-              <div className="space-y-2.5">
+              <div className="space-y-3">
                 {discoveryFeed.crossoverSuggestions.map(item => (
                   <div
                     key={item.id}
-                    className="rounded-lg border border-violet-500/30 bg-violet-500/10 p-3.5"
+                    className="rounded-xl border border-violet-500/40 bg-violet-950/20 p-4 shadow-md transition-all duration-200 hover:border-violet-400"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-violet-300">
-                          Signal Crossover
+                        <span className="rounded-md border border-violet-500/40 bg-violet-500/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-violet-300">
+                          ⚡ Signal Crossover
                         </span>
-                        <span className="rounded border border-cyan-500/30 bg-cyan-500/10 px-1 py-0.2 text-[9px] font-medium text-cyan-300">
+                        <span className="rounded-md border border-cyan-500/30 bg-cyan-500/10 px-1.5 py-0.5 text-[9px] font-semibold text-cyan-300">
                           Generated
                         </span>
                       </div>
                       <button
                         type="button"
                         onClick={() => setSelectedDiscoveryItem(item)}
-                        className="text-[11px] text-violet-200 hover:text-white"
+                        className="text-xs font-semibold text-violet-200 hover:text-white transition"
                       >
                         Inspect →
                       </button>
                     </div>
-                    <div className="mt-1 text-xs font-semibold text-white">
+                    <div className="mt-2 text-xs font-bold text-white">
                       {item.title}
                     </div>
-                    <p className="mt-1 text-[11px] text-white/70">
+                    <p className="mt-1 text-xs leading-relaxed text-white/70">
                       {item.reason}
                     </p>
-                    <div className="mt-2.5 flex items-center justify-between border-t border-violet-500/20 pt-2">
-                      <span className="text-[10px] text-violet-300/60">Topic resonance</span>
-                      <div className="flex items-center gap-1">
+                    <div className="mt-3 flex items-center justify-between border-t border-violet-500/20 pt-2.5">
+                      <span className="text-[10px] text-violet-300/70 font-mono">Resonance</span>
+                      <div className="flex items-center gap-1 rounded border border-violet-500/20 bg-black/30 p-0.5">
                         {FEEDBACK_OPTIONS.map(opt => {
                           const targetId = item.actionId || item.id;
                           const fb = getFeedbackForAction(feedbackMeta, targetId);
@@ -1807,10 +1879,10 @@ export default function ProfilePage() {
                                   }
                                 )
                               }
-                              className={`rounded px-1 py-0.5 text-[9px] font-medium transition border ${
+                              className={`rounded px-1.5 py-0.5 text-[9px] font-medium transition border ${
                                 isSelected
                                   ? opt.activeClass
-                                  : "border-violet-500/30 bg-violet-500/20 text-violet-200 hover:text-white"
+                                  : "border-transparent bg-transparent text-violet-200/50 hover:text-white"
                               }`}
                               title={opt.label}
                             >
@@ -1826,34 +1898,34 @@ export default function ProfilePage() {
                 {discoveryFeed.formatRecommendations.map(item => (
                   <div
                     key={item.id}
-                    className="rounded-lg border border-white/10 bg-black/25 p-3.5"
+                    className="rounded-xl border border-white/10 bg-[#0d091e]/60 p-4 shadow-md transition-all duration-200 hover:border-violet-500/40"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] font-semibold uppercase tracking-wider text-white/40">
+                        <span className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white/60">
                           Format Bias
                         </span>
-                        <span className="rounded border border-violet-500/30 bg-violet-500/10 px-1 py-0.2 text-[9px] font-medium text-violet-300">
+                        <span className="rounded-md border border-violet-500/30 bg-violet-500/15 px-1.5 py-0.5 text-[9px] font-semibold text-violet-300">
                           Format Intelligence
                         </span>
                       </div>
                       <button
                         type="button"
                         onClick={() => setSelectedDiscoveryItem(item)}
-                        className="text-[11px] text-violet-300 hover:text-white"
+                        className="text-xs font-semibold text-violet-300 hover:text-white transition"
                       >
                         Inspect →
                       </button>
                     </div>
-                    <div className="mt-1 text-xs font-medium text-white">
+                    <div className="mt-2 text-xs font-semibold text-white">
                       {item.title}
                     </div>
-                    <p className="mt-1 text-[11px] text-white/60">
+                    <p className="mt-1 text-xs leading-relaxed text-white/60">
                       {item.reason}
                     </p>
-                    <div className="mt-2.5 flex items-center justify-between border-t border-white/5 pt-2">
-                      <span className="text-[10px] text-white/40">Format tuning</span>
-                      <div className="flex items-center gap-1">
+                    <div className="mt-3 flex items-center justify-between border-t border-white/5 pt-2.5">
+                      <span className="text-[10px] text-white/40 font-mono">Format tuning</span>
+                      <div className="flex items-center gap-1 rounded border border-white/5 bg-black/30 p-0.5">
                         {FEEDBACK_OPTIONS.map(opt => {
                           const targetId = item.actionId || item.id;
                           const fb = getFeedbackForAction(feedbackMeta, targetId);
@@ -1875,10 +1947,10 @@ export default function ProfilePage() {
                                   }
                                 )
                               }
-                              className={`rounded px-1 py-0.5 text-[9px] font-medium transition border ${
+                              className={`rounded px-1.5 py-0.5 text-[9px] font-medium transition border ${
                                 isSelected
                                   ? opt.activeClass
-                                  : "border-white/5 bg-white/[0.02] text-white/40 hover:text-white"
+                                  : "border-transparent bg-transparent text-white/40 hover:text-white"
                               }`}
                               title={opt.label}
                             >
@@ -1896,44 +1968,44 @@ export default function ProfilePage() {
         </div>
 
         {/* Signal Journey Timeline & Feedback Milestones */}
-        <div className="rounded-xl border border-white/10 bg-white/[0.02] p-6">
+        <div className="rounded-2xl border border-white/10 bg-[#0c0817]/60 p-6 shadow-xl backdrop-blur-md">
           <div className="flex items-center justify-between border-b border-white/10 pb-4">
             <div>
               <span className="text-xs font-semibold uppercase tracking-wider text-violet-400">
                 Adaptive Signal Journey
               </span>
-              <h2 className="mt-1 text-lg font-semibold text-white">
+              <h2 className="mt-1 text-lg font-bold text-white">
                 Evolution & Feedback Milestones
               </h2>
             </div>
-            <span className="text-xs text-white/50">
+            <span className="text-xs text-white/50 font-mono">
               {signalJourney.length} Day Timeline
             </span>
           </div>
 
-          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+          <div className="mt-6 grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
             {signalJourney.map(sj => {
               const isCurrent = sj.day === dayIndex + 1;
               return (
                 <div
                   key={sj.day}
-                  className={`flex flex-col justify-between rounded-lg border p-3.5 transition ${
+                  className={`flex flex-col justify-between rounded-xl border p-4 transition-all duration-200 ${
                     isCurrent
-                      ? "border-violet-500/60 bg-violet-500/10 shadow-lg shadow-violet-500/10"
-                      : "border-white/10 bg-black/20 hover:border-white/20"
+                      ? "border-violet-500/70 bg-violet-600/15 shadow-lg shadow-violet-600/15 ring-1 ring-violet-400/40"
+                      : "border-white/10 bg-[#0d091e]/40 hover:border-white/25 hover:bg-[#0d091e]/80"
                   }`}
                 >
                   <div>
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-white/40">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-white/50 font-mono">
                         Day {sj.day}
                       </span>
-                      <span className="rounded bg-violet-500/20 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-violet-300">
+                      <span className="rounded-md bg-violet-500/20 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-violet-300">
                         {sj.type}
                       </span>
                     </div>
 
-                    <div className="mt-2 text-xs font-semibold text-white truncate" title={sj.title}>
+                    <div className="mt-2 text-xs font-bold text-white truncate" title={sj.title}>
                       {sj.title}
                     </div>
 
@@ -1944,7 +2016,7 @@ export default function ProfilePage() {
 
                   {sj.highlightTopic && (
                     <div className="mt-3 border-t border-white/5 pt-2 text-[10px] text-violet-300/80">
-                      Focus: <span className="text-white">{sj.highlightTopic}</span>
+                      Focus: <span className="text-white font-medium">{sj.highlightTopic}</span>
                       {sj.highlightSubtopic ? ` · ${sj.highlightSubtopic}` : ""}
                     </div>
                   )}
@@ -1954,54 +2026,63 @@ export default function ProfilePage() {
           </div>
         </div>
 
-
         {/* Training History Meta / Consistency */}
-        <div className="rounded-xl border border-white/10 bg-white/[0.02] p-6">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-white/40">
-            Training History & Signal Reinforcement
-          </h2>
+        <div className="rounded-2xl border border-white/10 bg-[#0c0817]/60 p-6 shadow-xl backdrop-blur-md">
+          <div className="flex items-center justify-between border-b border-white/10 pb-4">
+            <div>
+              <span className="text-xs font-semibold uppercase tracking-wider text-white/50">
+                Training History
+              </span>
+              <h2 className="mt-1 text-lg font-bold text-white">
+                Signal Reinforcement & Habits
+              </h2>
+            </div>
+            <span className="text-xs font-medium text-emerald-400">
+              Deterministic Tracking
+            </span>
+          </div>
 
-          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-lg border border-white/10 bg-black/20 p-4">
-              <span className="text-[11px] text-white/50">Days Completed</span>
-              <div className="mt-1 text-2xl font-bold text-white">
+          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-xl border border-white/10 bg-[#0d091e]/50 p-5 shadow-sm">
+              <span className="text-xs font-medium text-white/50">Days Completed</span>
+              <div className="mt-2 text-3xl font-extrabold text-white font-mono">
                 {overallProgress.daysCompleted} / {overallProgress.totalDays}
               </div>
             </div>
 
-            <div className="rounded-lg border border-white/10 bg-black/20 p-4">
-              <span className="text-[11px] text-white/50">Actions Completed</span>
-              <div className="mt-1 text-2xl font-bold text-white">
+            <div className="rounded-xl border border-white/10 bg-[#0d091e]/50 p-5 shadow-sm">
+              <span className="text-xs font-medium text-white/50">Actions Completed</span>
+              <div className="mt-2 text-3xl font-extrabold text-white font-mono">
                 {overallProgress.actionsCompleted} / {overallProgress.totalActions}
               </div>
             </div>
 
-            <div className="rounded-lg border border-white/10 bg-black/20 p-4">
-              <span className="text-[11px] text-white/50">Consistency Score</span>
-              <div className="mt-1 text-2xl font-bold text-white">
+            <div className="rounded-xl border border-white/10 bg-[#0d091e]/50 p-5 shadow-sm">
+              <span className="text-xs font-medium text-white/50">Consistency Score</span>
+              <div className="mt-2 text-3xl font-extrabold text-white font-mono">
                 {consistency.percentage}%
               </div>
-              <p className="mt-1 text-[10px] text-white/40">{consistency.message}</p>
+              <p className="mt-1.5 text-[11px] text-white/50">{consistency.message}</p>
             </div>
 
-            <div className="rounded-lg border border-white/10 bg-black/20 p-4">
-              <span className="text-[11px] text-white/50">Topics Reinforced</span>
-              <div className="mt-1 text-2xl font-bold text-white">
+            <div className="rounded-xl border border-white/10 bg-[#0d091e]/50 p-5 shadow-sm">
+              <span className="text-xs font-medium text-white/50">Topics Reinforced</span>
+              <div className="mt-2 text-3xl font-extrabold text-white font-mono">
                 {topicsReinforced.length}
               </div>
             </div>
           </div>
 
           {topicsReinforced.length > 0 && (
-            <div className="mt-4 border-t border-white/10 pt-4">
-              <div className="text-[11px] font-semibold text-white/50">Reinforced Topic Activity</div>
-              <div className="mt-2 flex flex-wrap gap-2">
+            <div className="mt-5 border-t border-white/10 pt-4">
+              <div className="text-xs font-semibold text-white/50 uppercase tracking-wider">Reinforced Topic Activity</div>
+              <div className="mt-2.5 flex flex-wrap gap-2">
                 {topicsReinforced.map(tr => (
                   <span
                     key={tr.topic}
-                    className="rounded-md border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-white/75"
+                    className="rounded-lg border border-violet-500/20 bg-violet-500/10 px-3 py-1 text-xs text-white/80"
                   >
-                    {tr.displayName}: <span className="font-semibold text-violet-300">{tr.actionCount} actions</span>
+                    {tr.displayName}: <span className="font-bold text-violet-300 font-mono">{tr.actionCount} actions</span>
                   </span>
                 ))}
               </div>

@@ -82,9 +82,10 @@ export default function Home() {
 
             <div className="max-w-3xl">
 
-              <p className="mb-8 text-xs font-medium uppercase tracking-[0.3em] text-white/50">
-                Personal algorithm / 01
-              </p>
+              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-violet-500/30 bg-violet-500/10 px-3.5 py-1 text-xs font-medium text-violet-300 backdrop-blur-md">
+                <span className="flex h-2 w-2 rounded-full bg-violet-400 animate-pulse" />
+                <span>Deterministic Feed Training · 100% Local-First</span>
+              </div>
 
               <motion.h1
                 initial={{
@@ -124,11 +125,9 @@ export default function Home() {
                   delay: 0.15,
                   ease: "easeOut",
                 }}
-                className="mt-10 max-w-xl text-lg leading-relaxed text-white/60"
+                className="mt-8 max-w-xl text-lg leading-relaxed text-white/70"
               >
-                Tell FeedSmith what matters to you.
-                We turn those preferences into a
-                clearer, more intentional feed.
+                Tell FeedSmith what matters to you. We turn your positive interests and suppression rules into a structured 7-day training blueprint across YouTube, Instagram, and TikTok.
               </motion.p>
 
               <motion.div
@@ -148,21 +147,21 @@ export default function Home() {
               >
                 <Link
                   href="/build"
-                  className="inline-flex items-center rounded-full bg-white px-7 py-3.5 text-sm font-medium text-black transition hover:scale-[1.03]"
+                  className="inline-flex items-center rounded-full bg-white px-7 py-3.5 text-sm font-semibold text-black shadow-lg shadow-white/10 transition hover:scale-[1.03] hover:bg-white/95"
                 >
-                  Build my feed
+                  Build your signal
                   <span className="ml-2">→</span>
                 </Link>
                 <Link
                   href="/build/profile"
-                  className="inline-flex items-center rounded-full border border-white/20 px-7 py-3.5 text-sm font-medium text-white/70 transition hover:border-white/40 hover:text-white"
+                  className="inline-flex items-center rounded-full border border-white/20 bg-white/5 px-7 py-3.5 text-sm font-medium text-white/80 backdrop-blur-md transition hover:border-violet-400 hover:text-white hover:bg-white/10"
                 >
                   Today&apos;s mission
                 </Link>
               </motion.div>
 
               <p className="mt-6 text-xs text-white/40">
-                Already built your signal? Go directly to today&apos;s training.
+                Already configured your Blueprint? Go straight to your daily missions.
               </p>
 
             </div>
@@ -189,10 +188,10 @@ export default function Home() {
                   <OrbitVisualization />
                   <div className="absolute inset-[25%] rounded-full border border-white/10" />
                   {/* Central element */}
-                  <div className="absolute left-1/2 top-1/2 flex h-40 w-40 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-black/20 backdrop-blur-md">
+                  <div className="absolute left-1/2 top-1/2 flex h-40 w-40 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-violet-500/30 bg-[#0d091b]/80 shadow-2xl shadow-violet-950/50 backdrop-blur-md">
                     <div className="text-center">
-                      <div className="text-xs uppercase tracking-[0.25em] text-white/40">Feed</div>
-                      <div className="mt-2 text-xl font-medium">Intentional</div>
+                      <div className="text-[10px] uppercase tracking-[0.25em] text-violet-300">Feed</div>
+                      <div className="mt-1 text-lg font-semibold tracking-tight text-white">Intentional</div>
                   </div>
                 </div>
                </div>
@@ -206,16 +205,16 @@ export default function Home() {
         {/* SECTION 02 — THE SIGNAL */}
         <section
           id="the-signal"
-          className="min-h-screen border-t border-white/10 px-6 py-32"
+          className="min-h-screen border-t border-white/10 px-6 py-32 flex items-center justify-center"
         >
           <div className="mx-auto max-w-4xl text-center">
-            <p className="text-sm font-semibold uppercase tracking-widest text-violet-400 mb-4">
+            <p className="text-xs font-semibold uppercase tracking-widest text-violet-400 mb-4">
               02 / THE SIGNAL
             </p>
             <h2 className="text-5xl md:text-6xl font-bold leading-tight">
               <span className="block text-white">Every interaction</span>
-              <span className="block text-white">teaches the algorithm</span>
-              <span className="block text-gray-400">something.</span>
+              <span className="block bg-gradient-to-r from-violet-300 via-indigo-200 to-white bg-clip-text text-transparent">teaches the algorithm</span>
+              <span className="block text-white/40">something.</span>
             </h2>
           </div>
         </section>
@@ -226,12 +225,12 @@ export default function Home() {
           className="min-h-screen border-t border-white/10 px-6 py-32"
         >
           <div className="mx-auto max-w-7xl">
-            <p className="text-xs uppercase tracking-[0.3em] text-white/40">03 / Take control</p>
+            <p className="text-xs uppercase tracking-[0.3em] text-violet-400">03 / Take control</p>
             <h2 className="mt-8 max-w-4xl text-5xl font-medium leading-tight tracking-[-0.04em] md:text-7xl">
               Stop adapting to<br />
               the algorithm.
             </h2>
-            <p className="mt-6 max-w-3xl text-lg text-white/70">Tell it what you actually want.</p>
+            <p className="mt-6 max-w-3xl text-lg text-white/70">Train it toward what you genuinely want to explore.</p>
 
             {/* Preference signals */}
             <motion.div
@@ -239,22 +238,25 @@ export default function Home() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, amount: 0.3 }}
               transition={{ duration: 0.8, delay: 0.2 }}
-              className="mt-12 grid grid-cols-2 gap-6 md:grid-cols-3 lg:grid-cols-4"
+              className="mt-12 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4"
             >
               {[
-                { label: "AI", intensity: 85 },
-                { label: "Programming", intensity: 78 },
-                { label: "Cybersecurity", intensity: 62 },
-                { label: "Design", intensity: 55 },
-                { label: "Gaming", intensity: 40 },
-                { label: "Science", intensity: 48 },
-                { label: "Technology", intensity: 70 },
+                { label: "AI & Machine Learning", intensity: 85, color: "from-violet-500 to-indigo-500" },
+                { label: "Programming", intensity: 78, color: "from-indigo-500 to-blue-500" },
+                { label: "Cybersecurity", intensity: 62, color: "from-emerald-500 to-teal-500" },
+                { label: "Design & UX", intensity: 55, color: "from-purple-500 to-pink-500" },
+                { label: "Gaming Hardware", intensity: 40, color: "from-amber-500 to-orange-500" },
+                { label: "Science & Physics", intensity: 48, color: "from-cyan-500 to-blue-500" },
+                { label: "Technology Trends", intensity: 70, color: "from-violet-500 to-purple-500" },
               ].map((pref, idx) => (
-                <div key={idx} className="relative rounded border border-white/20 p-3 text-sm text-white/80">
-                  <span className="block mb-2 text-white/90">{pref.label}</span>
-                  <div className="h-2 w-full bg-white/5 rounded">
+                <div key={idx} className="relative rounded-xl border border-white/10 bg-white/[0.02] p-4 backdrop-blur-sm transition hover:border-white/20">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-semibold text-white/90">{pref.label}</span>
+                    <span className="text-[10px] font-mono text-white/40">{pref.intensity}%</span>
+                  </div>
+                  <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
                     <div
-                      className="h-full rounded bg-violet-500"
+                      className={`h-full rounded-full bg-gradient-to-r ${pref.color}`}
                       style={{ width: `${pref.intensity}%` }}
                     />
                   </div>
@@ -362,14 +364,13 @@ export default function Home() {
           <div className="mx-auto max-w-3xl text-center">
             <h2 className="text-5xl font-medium text-white/90">Build a feed that feels like yours.</h2>
             <p className="mt-6 text-lg text-white/70">Your attention is yours. Your feed should be too.</p>
-            <motion.a
-              href="#start"
-              className="mt-10 inline-flex items-center rounded-full bg-white px-7 py-3.5 text-sm font-medium text-black transition hover:scale-[1.03]"
-              whileHover={{ scale: 1.03 }}
+            <Link
+              href="/build"
+              className="mt-10 inline-flex items-center rounded-full bg-white px-8 py-4 text-sm font-semibold text-black shadow-xl shadow-white/10 transition-all hover:scale-[1.03] hover:bg-white/95"
             >
-              Build my feed
+              Build your signal
               <span className="ml-2">→</span>
-            </motion.a>
+            </Link>
           </div>
         </section>
 
