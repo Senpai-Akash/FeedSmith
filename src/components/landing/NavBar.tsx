@@ -11,6 +11,7 @@ export default function NavBar() {
     { label: "Build Signal", href: "/build" },
     { label: "Daily Mission", href: "/build/profile" },
     { label: "Share Plan", href: "/build/plan" },
+    { label: "Beta Lab", href: "/beta" },
   ];
 
   return (

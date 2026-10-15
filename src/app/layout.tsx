@@ -1,4 +1,5 @@
 import "./globals.css";
+import { ProductFeedbackTrigger } from "@/components/feedback/ProductFeedbackTrigger";
 
 export const metadata = {
   title: "FeedSmith – Shape Your Feed",
@@ -13,7 +14,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        {children}
+        <ProductFeedbackTrigger />
+      </body>
     </html>
   );
 }

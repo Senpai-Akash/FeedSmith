@@ -1170,6 +1170,12 @@ export default function ProfilePage() {
 
           <div className="flex flex-wrap items-center gap-2.5">
             <Link
+              href="/beta"
+              className="rounded-xl border border-violet-500/30 bg-violet-600/20 px-3.5 py-2 text-xs font-semibold text-violet-200 transition hover:bg-violet-600/30 hover:border-violet-400"
+            >
+              Beta Lab 🧪
+            </Link>
+            <Link
               href="/build/plan"
               className="rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-xs font-semibold text-white transition hover:bg-white/10 hover:border-white/30"
             >

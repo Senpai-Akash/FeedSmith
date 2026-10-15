@@ -32,6 +32,13 @@ import {
   saveUserFeedbackMeta,
   clearUserFeedbackMeta,
 } from "./feedback";
+import {
+  loadProductFeedback,
+  saveProductFeedbackStore,
+  clearAllProductFeedback,
+  ProductFeedbackStoreSchema,
+  type ProductFeedbackStore,
+} from "./productFeedback";
 
 export const EXPORT_SCHEMA_VERSION = 1;
 
@@ -49,6 +56,7 @@ export interface FeedSmithExportPayload {
   };
   historyMeta: TrainingHistoryMeta;
   feedbackMeta: FeedbackMeta;
+  productFeedback?: ProductFeedbackStore;
 }
 
 /**
@@ -119,6 +127,7 @@ export const ExportPayloadSchema = z.object({
   progress: ProgressSchema.optional().default({ planKey: "", completed: {} }),
   historyMeta: HistoryMetaSchema.optional().default({ version: 1, days: [] }),
   feedbackMeta: FeedbackMetaSchema.optional().default({ version: 1, items: [] }),
+  productFeedback: ProductFeedbackStoreSchema.optional(),
 });
 
 export type ValidationResult =
@@ -177,6 +186,7 @@ export function exportFeedSmithData(): FeedSmithExportPayload {
   const progress = loadRawTrainingProgress();
   const historyMeta = loadTrainingHistoryMeta();
   const feedbackMeta = loadUserFeedbackMeta();
+  const productFeedback = loadProductFeedback();
 
   return {
     version: EXPORT_SCHEMA_VERSION,
@@ -186,6 +196,7 @@ export function exportFeedSmithData(): FeedSmithExportPayload {
     progress,
     historyMeta,
     feedbackMeta,
+    productFeedback,
   };
 }
 
@@ -222,6 +233,7 @@ export function validateImportData(raw: unknown): ValidationResult {
       },
       historyMeta: valid.historyMeta,
       feedbackMeta: valid.feedbackMeta as FeedbackMeta,
+      productFeedback: valid.productFeedback,
     },
   };
 }
@@ -234,6 +246,9 @@ export function importFeedSmithData(data: FeedSmithExportPayload): void {
   saveRawTrainingProgress(data.progress);
   saveTrainingHistoryMeta(data.historyMeta);
   saveUserFeedbackMeta(data.feedbackMeta);
+  if (data.productFeedback) {
+    saveProductFeedbackStore(data.productFeedback);
+  }
 }
 
 /**
@@ -263,4 +278,5 @@ export function resetAllFeedSmithData(): void {
   }
   clearTrainingHistoryMeta();
   clearUserFeedbackMeta();
+  clearAllProductFeedback();
 }
