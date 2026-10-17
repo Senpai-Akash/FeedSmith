@@ -61,8 +61,8 @@ class MockLocalStorage {
   }
 }
 
-// Inject global localStorage if not present
-if (typeof globalThis.localStorage === "undefined") {
+// Inject global localStorage if not present or incomplete (Node 22+ experimental stub)
+if (typeof globalThis.localStorage === "undefined" || typeof globalThis.localStorage.getItem !== "function") {
   (globalThis as unknown as { localStorage: MockLocalStorage }).localStorage = new MockLocalStorage();
 }
 

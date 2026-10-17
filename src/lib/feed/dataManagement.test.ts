@@ -31,7 +31,7 @@ class MockLocalStorage {
   }
 }
 
-if (typeof window === "undefined" || !globalThis.localStorage) {
+if (typeof window === "undefined" || !globalThis.localStorage || typeof globalThis.localStorage.getItem !== "function") {
   // @ts-expect-error - polyfill for testing
   globalThis.localStorage = new MockLocalStorage();
 }
